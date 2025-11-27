@@ -23,6 +23,14 @@ app_license = "mit"
 
 # Includes in <head>
 # ------------------
+fixtures = [
+    {
+    "doctype": "Custom Field",
+        "filters": {
+            "module": ["in", ["thinknxg kx v3"]]
+            }
+    },
+]
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/thinknxg_kx_v3/css/thinknxg_kx_v3.css"
@@ -147,6 +155,33 @@ app_license = "mit"
 
 # Scheduled Tasks
 # ---------------
+
+scheduler_events = {
+    "cron": {
+        "40 23 * * *": [  # Daily at 11:52
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.advance_deposit.main"
+        ],
+        "41 23 * * *": [  # Daily at 11:54
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.supplier_creation.main",
+        ],
+        "42 23 * * *": [  # Daily at 11:54
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.create_sales_invoice.main",
+        ],
+        "56 23 * * *": [  # Daily at 11:56
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.create_sinv_ip.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.op_refund.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.pharmacy_bill.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.pharmacy_refund.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.due_settlement.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.grn_creation.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.advance_deposit_refund.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.grn_return.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.stock_transfer.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.ar_bill_settlement.main",
+            "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.stock_consumption.main",
+        ],
+    }
+}
 
 # scheduler_events = {
 # 	"all": [

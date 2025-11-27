@@ -1,0 +1,84 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-08-27 01:08:57.768291",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "token_url",
+  "billing_url",
+  "facility_id",
+  "no_of_days",
+  "date",
+  "select_all",
+  "unselect_all",
+  "table_cbzy"
+ ],
+ "fields": [
+  {
+   "fieldname": "token_url",
+   "fieldtype": "Data",
+   "label": "Token URL"
+  },
+  {
+   "fieldname": "billing_url",
+   "fieldtype": "Data",
+   "label": "Billing URL"
+  },
+  {
+   "fieldname": "facility_id",
+   "fieldtype": "Data",
+   "label": "Facility ID"
+  },
+  {
+   "fieldname": "no_of_days",
+   "fieldtype": "Int",
+   "label": "No of Days (For the Datestamp)"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date"
+  },
+  {
+   "fieldname": "table_cbzy",
+   "fieldtype": "Table",
+   "options": "Karexpert  Table"
+  },
+  {
+   "fieldname": "select_all",
+   "fieldtype": "Button",
+   "label": "Select All"
+  },
+  {
+   "fieldname": "unselect_all",
+   "fieldtype": "Button",
+   "label": "Unselect All"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-08-27 23:26:52.815916",
+ "modified_by": "Administrator",
+ "module": "thinknxg kx v3",
+ "name": "Karexpert Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

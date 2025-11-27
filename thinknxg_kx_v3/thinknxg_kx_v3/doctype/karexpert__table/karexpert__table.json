@@ -1,0 +1,72 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-08-27 01:06:42.887167",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "billing_type",
+  "client_code",
+  "integration_key",
+  "x_api_key",
+  "execute",
+  "is_selected"
+ ],
+ "fields": [
+  {
+   "fieldname": "billing_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Billing Type"
+  },
+  {
+   "fieldname": "client_code",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Client Code",
+   "options": "METRO_THINKNXG_FI\nMETRO_THINKNXG_MM"
+  },
+  {
+   "fieldname": "integration_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Integration Key"
+  },
+  {
+   "fieldname": "x_api_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "X API Key"
+  },
+  {
+   "columns": 1,
+   "fieldname": "execute",
+   "fieldtype": "Button",
+   "in_list_view": 1,
+   "label": "Execute"
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "fieldname": "is_selected",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Select"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-11-20 09:14:41.462916",
+ "modified_by": "Administrator",
+ "module": "thinknxg kx v3",
+ "name": "Karexpert  Table",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
