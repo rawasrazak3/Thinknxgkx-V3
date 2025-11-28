@@ -53,10 +53,10 @@ def group_return_items_by_drReturnNo(return_items):
             }
         
         # Convert string values to float
-        net_purchase_value = float(item.get("netPurchaseValue", 0) or 0.0)
-        total_qty = float(item.get("returnQuantity",0) or 0.0)
-        total_tax = float(item.get("tax", 0) or 0.0)
-        tax = total_tax * total_qty
+        net_purchase_value = float(item.get("taxable_amount", 0) or 0.0)
+        total_qty = float(item.get("returnQuantity", 0) or 0.0)
+        tax = float(item.get("netTaxValue", 0) or 0.0)
+        # tax = float(item.get("tax", 0) or 0.0) * total_qty
         
         grouped_returns[dr_return_no]["items"].append(item)
         grouped_returns[dr_return_no]["total_net_purchase_value"] += net_purchase_value
@@ -77,37 +77,35 @@ def get_existing_supplier(supplier_code):
 
 def create_journal_entry_for_return(grouped_return):
     dr_return_no = grouped_return["first_item"]["drReturnNo"]
-    print("--return no--",dr_return_no)
     dr_no = grouped_return["first_item"]["drNo"]
     supplier = grouped_return["first_item"].get("supplierCode")
     supplier_name = get_existing_supplier(supplier)
     if not supplier_name:
         frappe.log(f"Supplier {supplier} not found, skipping return {dr_return_no}")
         return
+
     store_name = grouped_return["first_item"]["storeName"]
-    # Fetch Supplier Name
     supplier_doc = frappe.get_doc("Supplier", supplier_name)
     supplier_n = supplier_doc.supplier_name
 
-    # Check if journal entry already exists
-    existing_jv = frappe.db.exists("Journal Entry", {"custom_return_no": dr_return_no, "docstatus":1})
+    existing_jv = frappe.db.exists("Journal Entry", {"custom_return_no": dr_return_no, "docstatus": 1})
     if existing_jv:
         frappe.log(f"Journal Entry for drReturnNo {dr_return_no} already exists.")
         return
 
-    # Get posting date/time from return data
     date_ts = float(grouped_return["first_item"]["g_creation_time"])
-    datetimes = date_ts / 1000.0
-
-    # Define GMT+4
     gmt_plus_4 = timezone(timedelta(hours=4))
-    dt = datetime.fromtimestamp(datetimes, gmt_plus_4)
+    dt = datetime.fromtimestamp(date_ts / 1000.0, gmt_plus_4)
     posting_date = dt.strftime('%Y-%m-%d')
     posting_time = dt.strftime('%H:%M:%S')
+    grn_date_raw = float(grouped_return["first_item"]["grn_date"])
+    dt = datetime.fromtimestamp(grn_date_raw / 1000.0, gmt_plus_4)
+    grn_date = dt.strftime('%Y-%m-%d')
 
-    total_amount = grouped_return["total_net_purchase_value"] + grouped_return["total_tax"]
-    print("---amount--",grouped_return["total_net_purchase_value"])
-    print("---tax---",grouped_return["total_tax"])
+    total_amount = grouped_return["total_net_purchase_value"]
+    print("total amount--",total_amount)
+    tax_amount = grouped_return["total_tax"]
+    print("total tax---",tax_amount)
     if total_amount <= 0:
         frappe.log(f"Total amount for drReturnNo {dr_return_no} is zero or negative, skipping.")
         return
@@ -120,6 +118,7 @@ def create_journal_entry_for_return(grouped_return):
     print("stock",stock_account)
     creditor_account = frappe.db.get_value("Account", {"account_name": "Creditors", "company": company})
     print("creditor",creditor_account)
+    vat_account = "VAT 5% - AN"
     if not stock_account or not creditor_account:
         frappe.log_error("Stock or Creditors account not found for company: " + company)
         return
@@ -152,7 +151,7 @@ def create_journal_entry_for_return(grouped_return):
                 "account": creditor_account,
                 "party_type": "Supplier",
                 "party": supplier_name,
-                "debit_in_account_currency": total_amount,
+                "debit_in_account_currency": total_amount + tax_amount,
                 "reference_type": "Purchase Invoice",
                 "reference_name": reference_invoice,
                 "cost_center": None
@@ -164,7 +163,12 @@ def create_journal_entry_for_return(grouped_return):
             }
         ]
     })
-
+    if tax_amount:
+        je.append("accounts",{
+            "account": vat_account,
+            "debit_in_account_currency": 0,
+            "credit_in_account_currency": tax_amount
+        })
     try:
         je.insert(ignore_permissions=True)
         je.submit()
