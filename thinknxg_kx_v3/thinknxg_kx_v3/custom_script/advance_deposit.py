@@ -99,13 +99,19 @@ def create_journal_entry(billing_data):
         credit_account = company_doc.default_income_account
         cash_account = company_doc.default_cash_account
         bank_account = company_doc.default_bank_account
+        card_account = company_doc.default_bank_account
+
         # Use fixed account based on mode of payment
-        if mode_of_payment.lower() == "cash":
+        if mode_of_payment.lower() == "Cash":
             print("mode is cash---")
             paid_to_account = cash_account
-        else:
+        elif mode_of_payment.lower() == "Bank Transfer":
             print("mode is bank---")
             paid_to_account = bank_account
+        else:
+            print("mode is card---")      #Card Payment
+            paid_to_account = card_account
+
 
         # Get currency of the account
         paid_to_account_currency = frappe.db.get_value("Account", paid_to_account, "account_currency")
@@ -240,8 +246,10 @@ def get_or_create_customer(customer_name, payer_type=None):
     # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
-        if payer_type == "tpa":
-            customer_group = "TPA"
+        if payer_type == "insurance":
+            customer_group = "Insurance"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:

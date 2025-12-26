@@ -5,7 +5,7 @@ from frappe.utils import nowdate
 from datetime import datetime
 from frappe.utils import getdate, add_days, cint
 from datetime import datetime, timedelta, time, timezone
-from thinknxg_kx_v2.thinknxg_kx_v2.doctype.karexpert_settings.karexpert_settings import fetch_api_details
+from thinknxg_kx_v3.thinknxg_kx_v3.doctype.karexpert_settings.karexpert_settings import fetch_api_details
 billing_type = "OP PHARMACY BILLING"
 settings = frappe.get_single("Karexpert Settings")
 TOKEN_URL = settings.get("token_url")
@@ -43,7 +43,7 @@ def get_jwt_token():
 def fetch_op_billing(jwt_token, from_date, to_date):
     headers_billing = {
         "Content-Type": headers_token["Content-Type"],
-        # "clientCode": "METRO_THINKNXG_FI",
+        # "clientCode": "ALNILE_THINKNXG_FI",
         "clientCode": headers_token["clientCode"],
         # "integrationKey": "OP_BILLING",
         "integrationKey": headers_token["integrationKey"],
@@ -120,34 +120,59 @@ def get_or_create_patient(patient_name,gender):
 
 #     return sub_cost_center.name
 
-def get_or_create_cost_center(treating_department_name):
-    cost_center_name = f"{treating_department_name} - K"
+# def get_or_create_cost_center(treating_department_name):
+#     # Fallback if treating department is empty
+#     if not treating_department_name:
+#         treating_department_name = "Default Department"
+        
+#     cost_center_name = f"{treating_department_name} - AN"
     
-    # Check if the cost center already exists by full name
-    existing = frappe.db.exists("Cost Center", cost_center_name)
-    if existing:
-        return cost_center_name
+#     # Check if the cost center already exists by full name
+#     existing = frappe.db.exists("Cost Center", cost_center_name)
+#     if existing:
+#         return cost_center_name
     
-    # Determine parent based on treating_department_name
-    if treating_department_name == "LABORATORY(G) - MH":
-        parent_cost_center = "PARAMEDICAL(G) - MH"
-    else:
-        parent_cost_center = "DOCTORS(G) - K"
+#     # Determine parent based on treating_department_name
+#     if treating_department_name is not None:     # even "", null, or any value
+#         parent_cost_center = "Al Nile Hospital - AN"
 
-    # Create new cost center with full cost_center_name as document name
+
+#     # Create new cost center with full cost_center_name as document name
+#     cost_center = frappe.get_doc({
+#         "doctype": "Cost Center",
+#         "name": cost_center_name,               # Explicitly set doc name to full name with suffix
+#         "cost_center_name": treating_department_name,  # Display name without suffix
+#         "parent_cost_center": parent_cost_center,
+#         "is_group": 0,
+#         "company": "Al Nile Hospital"
+#     })
+#     cost_center.insert(ignore_permissions=True)
+#     frappe.db.commit()
+#     frappe.msgprint(f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'")
+    
+#     return cost_center_name  # Always return the full cost center name with suffix
+
+def get_or_create_cost_center(treating_department_name):
+    # Use a default name if empty
+    if not treating_department_name:
+        treating_department_name = "General"  # or any default department
+
+    cost_center_name = f"{treating_department_name} - AN"
+
+    existing = frappe.get_all("Cost Center", filters={"name": cost_center_name})
+    if existing:
+        return frappe.get_doc("Cost Center", existing[0]["name"])
+    
+    parent_cost_center = "Al Nile Hospital - AN"
     cost_center = frappe.get_doc({
         "doctype": "Cost Center",
-        "name": cost_center_name,               # Explicitly set doc name to full name with suffix
-        "cost_center_name": treating_department_name,  # Display name without suffix
-        "parent_cost_center": parent_cost_center,
-        "is_group": 0,
-        "company": "Karexpert"
+        "cost_center_name": cost_center_name,
+        "company": "Al Nile Hospital",
+        "parent_cost_center": parent_cost_center
     })
     cost_center.insert(ignore_permissions=True)
-    frappe.db.commit()
-    frappe.msgprint(f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'")
-    
-    return cost_center_name  # Always return the full cost center name with suffix
+    return cost_center
+
 
 @frappe.whitelist()
 def main():
@@ -249,7 +274,7 @@ def create_journal_entry_from_billing(billing_data):
 
     # Amounts
     is_due = billing_data["is_due"]
-    due_amount= billing_data["due_amount"]
+    due_amount= billing_data["patient_due_amount"]
 
     if is_due== "true":
             item_rate = billing_data["total_amount"]-due_amount
@@ -273,7 +298,7 @@ def create_journal_entry_from_billing(billing_data):
         customer_advance_account = "Debtors - AN"
 
     # vat_account = getattr(company_doc, "default_tax_account", None) or frappe.db.get_single_value("Company", "default_tax_account")
-    vat_account = "VAT 5% - K"
+    vat_account = "Output VAT 5% - AN"
     default_expense_account = company_doc.default_expense_account
     default_stock_in_hand = company_doc.default_inventory_account
     # discount_account = getattr(company_doc, "default_discount_account", None) or frappe.db.get_single_value("Company", "default_discount_account")
@@ -347,7 +372,7 @@ def create_journal_entry_from_billing(billing_data):
     # Handling due amount
     if is_due == "true" and due_amount > 0:
         je_accounts.append({
-            "account": "Due Ledger - K",  # Replace with actual bank account
+            "account": "Due Ledger - AN",  # Replace with actual bank account
             "debit_in_account_currency": due_amount,
             "credit_in_account_currency": 0,
             # "reference_type": "Sales Invoice",
@@ -395,7 +420,7 @@ def create_journal_entry_from_billing(billing_data):
     # --- Create Journal Entry ---
     je = frappe.get_doc({
         "doctype": "Journal Entry",
-        "naming_series": "KX-JV-.YYYY.-######",
+        "naming_series": "KX-JV-.YYYY.-",
         "voucher_type": "Journal Entry",
         "posting_date": formatted_date,
         "posting_time": posting_time,

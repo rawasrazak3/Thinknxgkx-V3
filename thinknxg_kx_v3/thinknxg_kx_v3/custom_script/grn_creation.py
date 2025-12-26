@@ -16,7 +16,7 @@ facility_id = settings.get("facility_id")
 # Fetch row details based on billing type
 billing_row = frappe.get_value("Karexpert  Table", {"billing_type": billing_type},
                                 ["client_code", "integration_key", "x_api_key"], as_dict=True)
-print("---billing row",billing_row)
+# print("---billing row",billing_row)
  
 headers_token = fetch_api_details(billing_type)
 # TOKEN_URL = "https://metro.kxstage.com/external/api/v1/token"
@@ -41,7 +41,7 @@ def get_jwt_token():
 def fetch_op_billing(jwt_token, from_date, to_date):
     headers_billing = {
         "Content-Type": "application/json",
-        "clientCode": "METRO_THINKNXG_MM",
+        "clientCode": "ALNILE_THINKNXG_MM",
         "integrationKey": "GRN_CREATION_SUMMARY",
         "Authorization": f"Bearer {jwt_token}"
     }
@@ -59,25 +59,25 @@ def get_existing_supplier(supplier_code):
         return None
     return supplier_name
 
-# def get_or_create_customer(patient_name,supplier_code):
-#     # existing_customer = frappe.db.exists("Supplier", {"supplier_name": patient_name})
-#     existing_supplier_name = frappe.db.get_value("Supplier", {"name": supplier_code}, "name")
-#     if existing_customer:
-#         return existing_customer
+def get_or_create_customer(patient_name,supplier_code):
+    existing_customer = frappe.db.exists("Supplier", {"supplier_name": patient_name})
+    existing_supplier_name = frappe.db.get_value("Supplier", {"name": supplier_code}, "name")
+    if existing_customer:
+        return existing_customer
     
-#     customer = frappe.get_doc({
-#         "doctype": "Supplier",
-#         "supplier_name": patient_name,
-#         "supplier_type": "Company",
-#         # "custom_supplier_code":supplier_code,
-#     })
-#     customer.insert(ignore_permissions=True)
-#     frappe.db.commit()
-#     return customer.name
+    customer = frappe.get_doc({
+        "doctype": "Supplier",
+        "supplier_name": patient_name,
+        "supplier_type": "Company",
+        "custom_supplier_code":supplier_code,
+    })
+    customer.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return customer.name
 
 
 def get_or_create_cost_center(department_name):
-    cost_center_name = f"{department_name} - K"
+    cost_center_name = f"{department_name} - AN"  # Append suffix to department name
     
     # Check if the cost center already exists by full name
     existing = frappe.db.exists("Cost Center", cost_center_name)
@@ -85,10 +85,8 @@ def get_or_create_cost_center(department_name):
         return cost_center_name
     
     # Determine parent based on department_name
-    if department_name == "LABORATORY(G) - AN":
-        parent_cost_center = "PARAMEDICAL(G) - AN"
-    else:
-        parent_cost_center = "DOCTORS(G) - AN"
+    if department_name is not None:     # even "", null, or any value
+        parent_cost_center = "Al Nile Hospital - AN"
 
     # Create new cost center with full cost_center_name as document name
     cost_center = frappe.get_doc({
@@ -97,7 +95,7 @@ def get_or_create_cost_center(department_name):
         "cost_center_name": department_name,  # Display name without suffix
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
-        "company": "Karexpert"
+        "company": "Al Nile Hospital"
     })
     cost_center.insert(ignore_permissions=True)
     frappe.db.commit()
@@ -106,7 +104,7 @@ def get_or_create_cost_center(department_name):
     return cost_center_name  # Always return the full cost center name with suffix
 
 def get_default_warehouse():
-    return frappe.db.get_single_value("Stock Settings", "default_warehouse") or "Stores - K"
+    return frappe.db.get_single_value("Stock Settings", "default_warehouse") or "Stores - AN"
 
 def create_journal_entry(billing_data):
     try:
@@ -116,6 +114,8 @@ def create_journal_entry(billing_data):
         gmt_plus_4 = timezone(timedelta(hours=4))
         dt = datetime.fromtimestamp(datetimes, gmt_plus_4)
         formatted_date = dt.strftime('%Y-%m-%d')
+        # modify_date = dt.strftime('%Y-%m-%d')
+        modify_datetime = dt.strftime('%Y-%m-%d %H:%M:%S')
         posting_time = dt.strftime('%H:%M:%S')
         grn_date_raw = float(billing_data["grn_date"])
         dt = datetime.fromtimestamp(grn_date_raw / 1000.0, gmt_plus_4)
@@ -156,7 +156,7 @@ def create_journal_entry(billing_data):
 
         if not default_payable or not default_inventory:
             frappe.throw("Please set Default Payable Account and Default Inventory Account in Company master.")
-        vat_account = "VAT 5% - K"
+        vat_account = "Output VAT 5% - AN"
 
         # Fetch Supplier Name
         supplier_doc = frappe.get_doc("Supplier", supplier)
@@ -165,11 +165,14 @@ def create_journal_entry(billing_data):
         # Build Journal Entry (Basic Example: Debit Expense / Credit Supplier)
         journal_entry = {
             "doctype": "Journal Entry",
+            "naming_series": "KX-JV-.YYYY.-",
             "posting_date": formatted_date,
             "posting_time": posting_time,
             "custom_grn_date":grn_date,
+            "custom_bill_category": "GRN",
+            "custom_modification_time": modify_datetime,
             "voucher_type": "Journal Entry",
-            "company": "Karexpert",
+            "company": "Al Nile Hospital",
             "custom_bill_number": bill_no,
             "custom_grn_number": grn_number,
             "custom_store": store_name,

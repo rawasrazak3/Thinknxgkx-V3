@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Balance Sheet</title>
+</head>
+<body>
+
+{%
+	var report_columns = report.get_columns_for_print();
+	report_columns = report_columns.filter(function(col) { return !col.hidden; });
+	var value_column = report_columns[report_columns.length - 1].fieldname;
+%}
+
+<style>
+	.t-balance-sheet {
+		font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	}
+	
+	.t-balance-header {
+		text-align: center;
+		margin-bottom: 20px;
+		border-bottom: 2px solid #333;
+		padding-bottom: 10px;
+		page-break-after: avoid;
+	}
+	
+	.t-balance-header h2 {
+		margin: 5px 0;
+		font-size: 24px;
+		font-weight: 600;
+	}
+	
+	.t-balance-header h3 {
+		margin: 3px 0;
+		font-size: 16px;
+		font-weight: 500;
+		color: #555;
+	}
+	
+	.t-balance-header h5 {
+		margin: 3px 0;
+		font-size: 13px;
+		color: #666;
+	}
+	
+	.t-balance-container {
+		display: flex;
+		gap: 20px;
+		margin-top: 15px;
+		page-break-before: avoid;
+		page-break-inside: avoid;
+	}
+	
+	.t-balance-column {
+		flex: 1;
+		border: 1px solid #ddd;
+	}
+	
+	.t-balance-column-header {
+		background-color: #34495e;
+		color: white;
+		padding: 12px 15px;
+		font-size: 16px;
+		font-weight: 600;
+		text-align: center;
+		border-bottom: 2px solid #2c3e50;
+	}
+	
+	.t-balance-row {
+		display: flex;
+		border-bottom: 1px solid #eee;
+		padding: 8px 15px;
+		align-items: center;
+	}
+	
+	.t-balance-row:hover {
+		background-color: #f8f9fa;
+	}
+	
+	.t-balance-account {
+		flex: 1;
+		font-size: 13px;
+	}
+	
+	.t-balance-amount {
+		min-width: 120px;
+		text-align: right;
+		font-size: 13px;
+		font-weight: 500;
+	}
+	
+	.t-balance-indent-1 { padding-left: 20px; }
+	.t-balance-indent-2 { padding-left: 40px; }
+	.t-balance-indent-3 { padding-left: 60px; }
+	.t-balance-indent-4 { padding-left: 80px; }
+	
+	.t-balance-total {
+		background-color: #ecf0f1;
+		font-weight: 700;
+		border-top: 2px solid #95a5a6;
+		font-size: 14px;
+	}
+	
+	.t-balance-grand-total {
+		background-color: #34495e;
+		color: white;
+		font-weight: 700;
+		border-top: 3px solid #2c3e50;
+		font-size: 15px;
+	}
+	
+	.t-balance-provisional {
+		background-color: #e8f5e9;
+		font-weight: 600;
+		font-style: italic;
+	}
+	
+	.t-balance-footer {
+		margin-top: 30px;
+		text-align: right;
+		color: #999;
+		font-size: 12px;
+	}
+	
+	@media print {
+		.t-balance-container {
+			page-break-inside: avoid;
+		}
+		.t-balance-header {
+			page-break-after: avoid;
+		}
+		.t-balance-sheet {
+			page-break-before: avoid;
+		}
+	}
+</style>
+
+<div class="t-balance-sheet">
+	<div class="t-balance-header">
+		<h2>{%= __(report.report_name) %}</h2>
+		<h3>{%= filters.company %}</h3>
+		{% if (filters.cost_center) { %}
+			<h3>{%= filters.cost_center %}</h3>
+		{% } %}
+		{% if (filters.fiscal_year) { %}
+			<h3>Fiscal Year: {%= filters.fiscal_year %}</h3>
+		{% } %}
+		{% if (filters.from_fiscal_year && filters.to_fiscal_year) { %}
+			<h3>
+				{% if (filters.from_fiscal_year === filters.to_fiscal_year) { %}
+					Fiscal Year: {%= filters.from_fiscal_year %}
+				{% } else { %}
+					Fiscal Year: {%= filters.from_fiscal_year %} to {%= filters.to_fiscal_year %}
+				{% } %}
+			</h3>
+		{% } %}
+		<h5>
+			{%= __("Currency") %}: {%= filters.presentation_currency || erpnext.get_currency(filters.company) %}
+		</h5>
+		{% if (filters.from_date) { %}
+			<h5>
+				{%= frappe.datetime.str_to_user(filters.from_date) %} - {%= frappe.datetime.str_to_user(filters.to_date) %}
+			</h5>
+		{% } %}
+	</div>
+
+	<div class="t-balance-container">
+		<!-- Left Column: Assets -->
+		<div class="t-balance-column">
+			<div class="t-balance-column-header">
+				{%= __("ASSETS") %}
+			</div>
+			{% var asset_mode = false; %}
+			{% for (var i = 0; i < data.length; i++) { %}
+				{% var row = data[i]; %}
+				{% var name = row.account_name || ''; %}
+				
+				{% if (name.indexOf('Application of Funds') !== -1 || (name.indexOf('Asset') !== -1 && row.indent === 0)) { %}
+					{% asset_mode = true; %}
+				{% } %}
+				
+				{% if ((name.indexOf('Source of Funds') !== -1 || name.indexOf('Liability') !== -1 || name.indexOf('Equity') !== -1) && row.indent === 0) { %}
+					{% asset_mode = false; %}
+				{% } %}
+				
+				{% if (asset_mode && name && name.indexOf('Provisional') === -1 && name.indexOf('Total (Credit)') === -1 && name.indexOf('Unclosed') === -1) { %}
+					<div class="t-balance-row {%= !row.parent_account ? 't-balance-total' : '' %}">
+						<div class="t-balance-account t-balance-indent-{%= Math.min(cint(row.indent), 4) %}">
+							{%= name %}
+						</div>
+						<div class="t-balance-amount">
+							{% if (row[value_column]) { %}
+								{%= frappe.format(row[value_column], report_columns[report_columns.length - 1], {}, row) %}
+							{% } %}
+						</div>
+					</div>
+				{% } %}
+			{% } %}
+		</div>
+
+		<!-- Right Column: Liabilities & Equity -->
+		<div class="t-balance-column">
+			<div class="t-balance-column-header">
+				{%= __("LIABILITIES & EQUITY") %}
+			</div>
+			{% var liability_mode = false; %}
+			{% for (var i = 0; i < data.length; i++) { %}
+				{% var row = data[i]; %}
+				{% var name = row.account_name || ''; %}
+				{% var special = name.indexOf('Provisional') !== -1 || name.indexOf('Total (Credit)') !== -1 || name.indexOf('Unclosed') !== -1; %}
+				
+				{% if (name.indexOf('Source of Funds') !== -1 || name.indexOf('Liability') !== -1 || name.indexOf('Equity') !== -1) { %}
+					{% if (row.indent === 0 || name.indexOf('Source of Funds') !== -1) { %}
+						{% liability_mode = true; %}
+					{% } %}
+				{% } %}
+				
+				{% if ((liability_mode || special) && name) { %}
+					{% var cls = 't-balance-row'; %}
+					{% if (name.indexOf('Total (Credit)') !== -1) { %}
+						{% cls += ' t-balance-grand-total'; %}
+					{% } else if (special) { %}
+						{% cls += ' t-balance-provisional'; %}
+					{% } else if (!row.parent_account) { %}
+						{% cls += ' t-balance-total'; %}
+					{% } %}
+					
+					<div class="{%= cls %}">
+						<div class="t-balance-account t-balance-indent-{%= Math.min(cint(row.indent), 4) %}">
+							{%= name.replace(/'/g, '') %}
+						</div>
+						<div class="t-balance-amount">
+							{% if (row[value_column]) { %}
+								{%= frappe.format(row[value_column], report_columns[report_columns.length - 1], {}, row) %}
+							{% } %}
+						</div>
+					</div>
+				{% } %}
+			{% } %}
+		</div>
+	</div>
+
+	<div class="t-balance-footer">
+		{%= __("Printed on {0}", [frappe.datetime.str_to_user(frappe.datetime.get_datetime_as_string())]) %}
+	</div>
+</div>
+
+</body>
+</html>

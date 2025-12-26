@@ -70,7 +70,7 @@ def get_or_create_patient(patient_name,gender):
     frappe.db.commit()
     return customer.name
 def get_or_create_cost_center(treating_department_name):
-    cost_center_name = f"{treating_department_name} - K"
+    cost_center_name = f"{treating_department_name} - AN"
     
     # Check if the cost center already exists by full name
     existing = frappe.db.exists("Cost Center", cost_center_name)
@@ -78,10 +78,8 @@ def get_or_create_cost_center(treating_department_name):
         return cost_center_name
     
     # Determine parent based on treating_department_name
-    if treating_department_name == "LABORATORY(G) - MH":
-        parent_cost_center = "PARAMEDICAL(G) - MH"
-    else:
-        parent_cost_center = "DOCTORS(G) - K"
+    if treating_department_name is not None:     # even "", null, or any value
+        parent_cost_center = "Al Nile Hospital - AN"
 
     # Create new cost center with full cost_center_name as document name
     cost_center = frappe.get_doc({
@@ -90,7 +88,7 @@ def get_or_create_cost_center(treating_department_name):
         "cost_center_name": treating_department_name,  # Display name without suffix
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
-        "company": "Karexpert"
+        "company": "Al Nile Hospital"
     })
     cost_center.insert(ignore_permissions=True)
     frappe.db.commit()
@@ -181,7 +179,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     debit_account = company_doc.default_receivable_account
     cash_account = company_doc.default_cash_account
     bank_account = company_doc.default_bank_account
-    vat_account = "VAT 5% - K"
+    vat_account = "Output VAT 5% - AN"
     default_expense_account = company_doc.default_expense_account
     default_stock_in_hand = company_doc.default_inventory_account
 
@@ -189,6 +187,39 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         (item.get("ueprValue") or 0)
         for item in refund_data.get("item_details", [])
     )
+
+    #  # 🔵 FETCH ORIGINAL OP BILLING JOURNAL ENTRY (REFERENCE)
+    # original_billing_je = frappe.db.get_value(
+    #     "Journal Entry",
+    #     {
+    #         "custom_bill_number": bill_no,
+    #         "custom_bill_category": "OP Billing",
+    #         "docstatus": 1
+    #     },
+    #     "name"
+    # )
+
+    # if not original_billing_je:
+    #     frappe.log_error(
+    #         f"Original OP Billing JE not found for bill_no: {bill_no}"
+    #     )
+    #     return
+
+    original_billing_je = frappe.get_all(
+        "Journal Entry",
+        filters={
+            "custom_bill_number": bill_no,
+            "custom_bill_category": "OP Billing",
+            "docstatus": 1
+        },
+        fields=["name"],
+        limit=1
+    )
+    reference_invoice = original_billing_je[0]["name"] if original_billing_je else None
+
+    if not reference_invoice:
+        frappe.log(f"No original OP Billing JE found with bill No: {bill_no}")
+
 
     je_accounts = [
         # {
@@ -202,6 +233,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "debit_in_account_currency": item_rate,
             "credit_in_account_currency": 0,
             "cost_center": cost_center,
+            "reference_type": "Journal Entry",
+            "reference_name": reference_invoice
             # "party_type": "Customer",
             # "party": customer
         },
@@ -240,11 +273,15 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         if amount <= 0:
             continue
 
+        je_account = None
+
         if mode == "cash":
             je_accounts.append({
                 "account": cash_account,
                 "debit_in_account_currency": 0,
-                "credit_in_account_currency": amount
+                "credit_in_account_currency": amount,
+                # "reference_type": "Journal Entry",
+                # "reference_name": reference_invoice
             })
         elif mode == "credit":
             je_accounts.append({
@@ -252,20 +289,35 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency":0,
                 "credit_in_account_currency":amount,
                 "party_type": "Customer",
-                "party": customer
+                "party": customer,
+                "reference_type": "Journal Entry",
+                "reference_name": reference_invoice
             })
         elif mode in ["upi", "card_payment", "bank"]:
             je_accounts.append({
                 "account": bank_account,
                 "debit_in_account_currency": 0,
-                "credit_in_account_currency": amount
+                "credit_in_account_currency": amount,
+                # "reference_type": "Journal Entry",
+                # "reference_name": reference_invoice
             })
         elif mode == "ip advance":
             je_accounts.append({
-                "account": "Advance Received - K",
+                "account": "Advance Received - AN",
                 "debit_in_account_currency": 0,
-                "credit_in_account_currency": amount
+                "credit_in_account_currency": amount,
+                # "reference_type": "Journal Entry",
+                # "reference_name": reference_invoice
             })
+
+        # Only add reference if original billing JE exists
+        if je_account and reference_invoice:
+            je_account.update({
+                "reference_type": "Journal Entry",
+                "reference_name": reference_invoice
+            })
+        if je_account:
+            je_accounts.append(je_account)
 
     # --- Create Refund JE ---
     je = frappe.get_doc({
