@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, time, timezone
 from thinknxg_kx_v3.thinknxg_kx_v3.doctype.karexpert_settings.karexpert_settings import fetch_api_details
 
 billing_type = "GET MAIN STORE CONSUMPTION"
+# billing_type = "GET STOCK CONSUMPTION"
 settings = frappe.get_single("Karexpert Settings")
 TOKEN_URL = settings.get("token_url")
 BILLING_URL = settings.get("billing_url")
@@ -30,8 +31,9 @@ def get_jwt_token():
 def fetch_advance_billing(jwt_token, from_date, to_date):
     headers_billing = {
         "Content-Type": "application/json",
-        "clientCode": "METRO_THINKNXG_MM",
-        "integrationKey": "GET_MAIN_STORE_CONSUMPTION",
+        "clientCode": "ALNILE_THINKNXG_MM",
+        # "integrationKey": "GET_MAIN_STORE_CONSUMPTION",
+        "integrationKey": "GET_STOCK_CONSUMPTION",
         "Authorization": f"Bearer {jwt_token}"
     }
     payload = {"requestJson": {"FROM": from_date, "TO": to_date}}
@@ -121,10 +123,10 @@ def create_journal_entry_from_billing_group(key, records, category):
         debit_account = company_doc.default_receivable_account
         credit_account = company_doc.default_income_account
         bank_account = company_doc.default_bank_account
-        stock_acc = "1410 - Stock In Hand - MH"
-        write_off_account = "Diff Income - OP"
-        consumption_acc = "5113 - Store Consumption - MH"
-        vat_account = "2370 - VAT 5% - MH"
+        stock_acc = "Stock In Hand - AN"
+        write_off_account = "Write Off - AN"
+        consumption_acc = "Store Consumption - AN"
+        vat_account = "Output VAT 5% - AN"
         default_expense_account = company_doc.default_expense_account
         default_stock_in_hand = company_doc.default_inventory_account
 

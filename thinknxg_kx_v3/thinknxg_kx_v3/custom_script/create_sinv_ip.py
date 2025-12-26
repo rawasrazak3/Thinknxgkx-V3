@@ -43,9 +43,9 @@ def get_jwt_token():
 def fetch_op_billing(jwt_token, from_date, to_date):
     headers_billing = {
         "Content-Type": headers_token["Content-Type"],
-        # "clientCode": "METRO_THINKNXG_FI",
+        # "clientCode": "ALNILE_THINKNXG_FI",
         "clientCode": headers_token["clientCode"],
-        # "integrationKey": "OP_BILLING",
+        # "integrationKey": "IPD_BILLING",
         "integrationKey": headers_token["integrationKey"],
         "Authorization": f"Bearer {jwt_token}"
     }
@@ -69,8 +69,10 @@ def get_or_create_customer(customer_name, payer_type=None):
     # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
-        if payer_type == "tpa":
-            customer_group = "TPA"
+        if payer_type == "insurance":
+            customer_group = "Insurance"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
@@ -115,10 +117,8 @@ def get_or_create_cost_center(treating_department_name):
         return cost_center_name
     
     # Determine parent based on treating_department_name
-    if treating_department_name == "LABORATORY(G) - AN":
-        parent_cost_center = "PARAMEDICAL(G) - AN"
-    else:
-        parent_cost_center = "DOCTORS(G) - AN"
+    if treating_department_name is not None:     # even "", null, or any value
+        parent_cost_center = "Al Nile Hospital - AN"
 
     # Create new cost center with full cost_center_name as document name
     cost_center = frappe.get_doc({
@@ -261,7 +261,7 @@ def create_journal_entry_from_billing(billing_data):
         customer_advance_account = "Debtors - AN"
 
     # vat_account = getattr(company_doc, "default_tax_account", None) or frappe.db.get_single_value("Company", "default_tax_account")
-    vat_account = "VAT 5% - K"
+    vat_account = "Output VAT 5% - AN"
     default_expense_account = company_doc.default_expense_account
     default_stock_in_hand = company_doc.default_inventory_account
     # discount_account = getattr(company_doc, "default_discount_account", None) or frappe.db.get_single_value("Company", "default_discount_account")
@@ -341,7 +341,7 @@ def create_journal_entry_from_billing(billing_data):
     # Handling due amount
     if is_due == "true" and due_amount > 0:
         je_accounts.append({
-            "account": "Due Ledger - K",  # Replace with actual bank account
+            "account": "Due Ledger - AN",  # Replace with actual bank account
             "debit_in_account_currency": due_amount,
             "credit_in_account_currency": 0,
             # "reference_type": "Sales Invoice",

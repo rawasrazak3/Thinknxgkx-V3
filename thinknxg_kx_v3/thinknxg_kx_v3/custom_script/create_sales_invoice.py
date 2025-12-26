@@ -43,7 +43,7 @@ def get_jwt_token():
 def fetch_op_billing(jwt_token, from_date, to_date):
     headers_billing = {
         "Content-Type": headers_token["Content-Type"],
-        # "clientCode": "METRO_THINKNXG_FI",
+        # "clientCode": "ALNILE_THINKNXG_FI",
         "clientCode": headers_token["clientCode"],
         # "integrationKey": "OP_BILLING",
         "integrationKey": headers_token["integrationKey"],
@@ -69,8 +69,10 @@ def get_or_create_customer(customer_name, payer_type=None):
     # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
-        if payer_type == "tpa":
-            customer_group = "TPA"
+        if payer_type == "insurance":
+            customer_group = "Insurance"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
@@ -87,7 +89,6 @@ def get_or_create_customer(customer_name, payer_type=None):
     })
     customer.insert(ignore_permissions=True)
     frappe.db.commit()
-
     return customer.name
 
 def get_or_create_patient(patient_name,gender,uhid):
@@ -141,7 +142,7 @@ def get_or_create_patient(patient_name,gender,uhid):
 #     return sub_cost_center.name
 
 def get_or_create_cost_center(treating_department_name):
-    cost_center_name = f"{treating_department_name} - K"
+    cost_center_name = f"{treating_department_name} - AN"
     
     # Check if the cost center already exists by full name
     existing = frappe.db.exists("Cost Center", cost_center_name)
@@ -149,10 +150,9 @@ def get_or_create_cost_center(treating_department_name):
         return cost_center_name
     
     # Determine parent based on treating_department_name
-    if treating_department_name == "LABORATORY(G) - MH":
-        parent_cost_center = "PARAMEDICAL(G) - MH"
-    else:
-        parent_cost_center = "DOCTORS(G) - K"
+    if treating_department_name is not None :
+        parent_cost_center = "Al Nile Hospital - AN"
+
 
     # Create new cost center with full cost_center_name as document name
     cost_center = frappe.get_doc({
@@ -161,7 +161,7 @@ def get_or_create_cost_center(treating_department_name):
         "cost_center_name": treating_department_name,  # Display name without suffix
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
-        "company": "Karexpert"
+        "company": "Al Nile Hospital"
     })
     cost_center.insert(ignore_permissions=True)
     frappe.db.commit()
@@ -282,6 +282,9 @@ def create_journal_entry_from_billing(billing_data):
 
 
     authorized_amount = billing_data.get("authorized_amount", 0)
+    payer_amounts = billing_data.get("received_amount", 0)
+    payer_amount = authorized_amount + payer_amounts
+
     discount_amount = billing_data["selling_amount"] - billing_data["total_amount"]
     tax_amount = billing_data["tax"]
 
@@ -296,7 +299,7 @@ def create_journal_entry_from_billing(billing_data):
    
 
     # vat_account = getattr(company_doc, "default_tax_account", None) or frappe.db.get_single_value("Company", "default_tax_account")
-    vat_account = "VAT 5% - AN"
+    vat_account = "Output VAT 5% - AN"
     default_expense_account = company_doc.default_expense_account
     default_stock_in_hand = company_doc.default_inventory_account
     if payer_type.lower() == "cash":
@@ -346,7 +349,7 @@ def create_journal_entry_from_billing(billing_data):
         if payment["payment_mode_code"].lower() == "cash":
             je_accounts.append({
                 "account": cash_account,  # Replace with actual cash account
-                "debit_in_account_currency": payment["amount"],
+                "debit_in_account_currency": payment["amount"],    # Cash received
                 "credit_in_account_currency": 0
             })
 
@@ -373,14 +376,25 @@ def create_journal_entry_from_billing(billing_data):
         })
 
     # Handling due amount
-    if is_due == "true" and due_amount > 0:
+    # if is_due == "true" and due_amount > 0:
+    #     je_accounts.append({
+    #         "account": "Due Ledger - AN",  # Replace with actual bank account
+    #         "debit_in_account_currency": due_amount,
+    #         "credit_in_account_currency": 0,
+    #     #     "reference_type": "Sales Invoice",
+    #     #     "reference_name":sales_invoice_name
+    #     })
+
+    if billing_data.get("is_due") and due_amount > 0:
         je_accounts.append({
-            "account": "Due Ledger - K",  # Replace with actual bank account
-            "debit_in_account_currency": due_amount,
+            "account": "Due Ledger - AN",
+            "debit_in_account_currency": due_amount,  
             "credit_in_account_currency": 0,
-            # "reference_type": "Sales Invoice",
-            # "reference_name":sales_invoice_name
-        })
+            "party_type": "Customer",
+            "party": customer,
+            "cost_center": cost_center
+    })
+
 
     # Tax line
     if tax_amount > 0:

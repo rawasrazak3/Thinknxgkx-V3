@@ -28,7 +28,7 @@ frappe.ui.form.on("Karexpert  Table", {
 				message: "Advance Deposit Refund Created"
 			},
 			"OP PHARMACY BILLING": {
-				method: "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.op_pharmacy_bill.main",
+				method: "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.pharmacy_bill.main",
 				message: "OP pharmacy Sales Invoice Created"
 			},
 			"GRN CREATION SUMMARY": {
@@ -40,7 +40,7 @@ frappe.ui.form.on("Karexpert  Table", {
 				message: "OP sales return  Invoice Created"
 			},
 			"PHARMACY BILLING REFUND": {
-				method: "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.pharmacy_billing_refund.main",
+				method: "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.pharmacy_refund.main",
 				message: "Pharmacy sales return  Invoice Created"
 			},
 			"GRN RETURN DETAIL": {
@@ -169,7 +169,7 @@ frappe.ui.form.on("Karexpert Settings", {
 							method: "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.doctor_payout.main",
 							message: "Doctor Payout Created"
 						},
-						"GET MAIN STORE CONSUMPTION": {
+						"GET STOCK CONSUMPTION": {
 							method:"thinknxg_kx_v3.thinknxg_kx_v3.custom_script.stock_consumption.main",
 							message: "Stock Consumption Created"
 						},

@@ -31,7 +31,7 @@ def get_jwt_token():
 def fetch_doctor_payout(jwt_token, from_date, to_date):
     headers_billing = {
         "Content-Type": "application/json",
-        "clientCode": "METRO_THINKNXG_FI",
+        "clientCode": "ALNILE_THINKNXG_FI",
         "integrationKey": "DOCTOR_PAYOUT",
         "Authorization": f"Bearer {jwt_token}"
     }

@@ -29,7 +29,7 @@ def get_jwt_token():
 def fetch_grn_returns(jwt_token, from_date, to_date):
     headers_return = {
         "Content-Type": "application/json",
-        "clientCode": "METRO_THINKNXG_MM",
+        "clientCode": "ALNILE_THINKNXG_MM",
         "integrationKey": "GRN_RETURN_DETAIL",
         "Authorization": f"Bearer {jwt_token}"
     }
@@ -118,7 +118,9 @@ def create_journal_entry_for_return(grouped_return):
     print("stock",stock_account)
     creditor_account = frappe.db.get_value("Account", {"account_name": "Creditors", "company": company})
     print("creditor",creditor_account)
-    vat_account = "VAT 5% - AN"
+
+    vat_account = "Output VAT 5% - AN"
+
     if not stock_account or not creditor_account:
         frappe.log_error("Stock or Creditors account not found for company: " + company)
         return
@@ -138,12 +140,15 @@ def create_journal_entry_for_return(grouped_return):
     # Create Journal Entry
     je = frappe.get_doc({
         "doctype": "Journal Entry",
+        "naming_series": "KX-JV-.YYYY.-",
         "voucher_type": "Debit Note",
         "posting_date": posting_date,
+        "custom_grn_date":grn_date,
         "custom_bill_category": "GRN Return",
         "custom_return_no": dr_return_no,
         "custom_bill_number": dr_no,
         "custom_supplier_name": supplier_n,
+        "custom_store": store_name,
         "company": company,
         "user_remark": f"Auto return for GRN {dr_no} - Return {dr_return_no}",
         "accounts": [
@@ -152,7 +157,7 @@ def create_journal_entry_for_return(grouped_return):
                 "party_type": "Supplier",
                 "party": supplier_name,
                 "debit_in_account_currency": total_amount + tax_amount,
-                "reference_type": "Purchase Invoice",
+                "reference_type": "Journal Entry",
                 "reference_name": reference_invoice,
                 "cost_center": None
             },
