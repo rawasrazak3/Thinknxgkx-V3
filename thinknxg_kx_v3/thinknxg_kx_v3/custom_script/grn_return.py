@@ -157,11 +157,7 @@ def create_journal_entry_for_return(grouped_return):
                 "party_type": "Supplier",
                 "party": supplier_name,
                 "debit_in_account_currency": total_amount + tax_amount,
-<<<<<<< HEAD
-                "reference_type": "Purchase Invoice",
-=======
                 "reference_type": "Journal Entry",
->>>>>>> f5d752c (alnile custom scripts)
                 "reference_name": reference_invoice,
                 "cost_center": None
             },
