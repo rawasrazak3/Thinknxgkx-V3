@@ -177,6 +177,7 @@ def create_journal_entry(billing_data):
         # if existing_je:
         #     return f"Skipped: Journal Entry {existing_je} already exists."
 
+        transfer_to_uhId_advance = billing_data.get("transfer_to_uhId_advance")
         customer_name = billing_data.get("payer_name")
         payer_type = billing_data.get("payer_type")
         customer = get_or_create_customer(customer_name,payer_type)
@@ -191,6 +192,51 @@ def create_journal_entry(billing_data):
             customer_advance_account = "Advance Received - AN"
         else:
             customer_advance_account = "Debtors - AN"
+
+
+        # Decide accounts based on transfer_to_uhid
+        accounts = []
+
+        if transfer_to_uhId_advance:
+            # REVERSE ENTRY
+            # Debit → Advance Received / Debtors
+            # Credit → Cash / Bank
+
+            accounts.append({
+                "account": customer_advance_account,
+                "debit_in_account_currency": amount,
+                "account_currency": paid_to_account_currency,
+                "party_type": "Customer" if customer else None,
+                "party": customer,
+                "is_advance": "Yes"
+            })
+
+            accounts.append({
+                "account": paid_to_account,
+                "credit_in_account_currency": amount,
+                "account_currency": paid_to_account_currency
+            })
+
+        else:
+            #  NORMAL ENTRY
+            # Debit → Cash / Bank
+            # Credit → Advance Received / Debtors
+
+            accounts.append({
+                "account": paid_to_account,
+                "debit_in_account_currency": amount,
+                "account_currency": paid_to_account_currency
+            })
+
+            accounts.append({
+                "account": customer_advance_account,
+                "credit_in_account_currency": amount,
+                "account_currency": paid_to_account_currency,
+                "party_type": "Customer" if customer else None,
+                "party": customer,
+                "is_advance": "Yes"
+            })
+
         journal_entry = frappe.get_doc({
             "doctype": "Journal Entry",
             "posting_date": formatted_date,
@@ -202,21 +248,22 @@ def create_journal_entry(billing_data):
             "custom_payer_type": payer_type,
             "custom_uh_id": custom_uh_id,
             "custom_bill_category": "UHID Advance",
-            "accounts": [
-                {
-                    "account": paid_to_account,
-                    "debit_in_account_currency": amount,
-                    "account_currency": paid_to_account_currency
-                },
-                {
-                    "account": customer_advance_account,
-                    "credit_in_account_currency": amount,
-                    "account_currency": paid_to_account_currency,
-                    "party_type": "Customer",
-                    "party": customer,
-                    "is_advance":"Yes"
-                }
-            ]
+            "accounts": accounts
+            # "accounts": [
+            #     {
+            #         "account": paid_to_account,
+            #         "debit_in_account_currency": amount,
+            #         "account_currency": paid_to_account_currency
+            #     },
+            #     {
+            #         "account": customer_advance_account,
+            #         "credit_in_account_currency": amount,
+            #         "account_currency": paid_to_account_currency,
+            #         "party_type": "Customer",
+            #         "party": customer,
+            #         "is_advance":"Yes"
+            #     }
+            # ]
         })
         if transaction_id:
             journal_entry.cheque_no = transaction_id
