@@ -552,7 +552,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     cost_center = get_or_create_cost_center(treating_department_name)
 
     # Amounts (Refund)
-    item_rate = refund_data["patient_refund_amount"]
+    item_rate = refund_data["taxable_amount"]
     tax_amount = refund_data.get("tax", 0)
     authorized_amount = refund_data.get("authorized_amount", 0)
     discount_amount = refund_data.get("selling_amount", 0) - refund_data.get("taxable_amount", 0)
