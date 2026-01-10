@@ -225,8 +225,8 @@ def create_journal_entry(billing_data):
                 "account": customer_advance_account,
                 "debit_in_account_currency": amount,
                 "account_currency": paid_to_account_currency,
-                "party_type": "Customer" if customer else None,
-                "party": customer,
+                # "party_type": "Customer" if customer else None,
+                # "party": customer,
                 "is_advance": "Yes"
             })
 
@@ -251,8 +251,8 @@ def create_journal_entry(billing_data):
                 "account": customer_advance_account,
                 "credit_in_account_currency": amount,
                 "account_currency": paid_to_account_currency,
-                "party_type": "Customer" if customer else None,
-                "party": customer,
+                # "party_type": "Customer" if customer else None,
+                # "party": customer,
                 "is_advance": "Yes"
             })
 
