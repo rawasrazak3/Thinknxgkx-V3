@@ -90,7 +90,7 @@ if __name__ == "__main__":
 def create_journal_entry(billing_data):
     print("creating journal----")
     try:
-        mode_of_payment = billing_data["payment_transaction_details"][0]["payment_mode_display"]
+        # mode_of_payment = billing_data["payment_transaction_details"][0]["payment_mode_display"]
         # --- Fetch accounts dynamically from Company ---
         company = frappe.defaults.get_user_default("Company")
         company_doc = frappe.get_doc("Company", company)
@@ -102,15 +102,26 @@ def create_journal_entry(billing_data):
         card_account = company_doc.default_bank_account
 
         # Use fixed account based on mode of payment
-        if mode_of_payment.lower() == "Cash":
-            print("mode is cash---")
+        # if mode_of_payment.lower() == "Cash":
+        #     print("mode is cash---")
+        #     paid_to_account = cash_account
+        # elif mode_of_payment.lower() == "Bank Transfer":
+        #     print("mode is bank---")
+        #     paid_to_account = bank_account
+        # else:
+        #     print("mode is card---")      #Card Payment
+        #     paid_to_account = card_account
+
+        mode_of_payment = (billing_data["payment_transaction_details"][0]
+                   .get("payment_mode_display") or "").lower().strip()
+
+        if mode_of_payment == "cash":
             paid_to_account = cash_account
-        elif mode_of_payment.lower() == "Bank Transfer":
-            print("mode is bank---")
-            paid_to_account = bank_account
-        else:
-            print("mode is card---")      #Card Payment
+        elif mode_of_payment in ("Card Payment"):
             paid_to_account = card_account
+        else:
+            paid_to_account = bank_account
+
 
 
         # Get currency of the account
@@ -183,12 +194,20 @@ def create_journal_entry(billing_data):
         customer = get_or_create_customer(customer_name,payer_type)
         custom_advance_type = billing_data.get("advance_type")
         custom_patient_type = billing_data.get("patient_type_display")
-        custom_uh_id = billing_data.get("uhId")
+        custom_uhid = billing_data.get("uhId")
         amount = billing_data.get("amount")
+        authorized_amount = billing_data.get("authorized_amount")
 
         # Fetch default receivable account or use a custom "Customer Advances" account
         # customer_advance_account = frappe.db.get_value("Company", frappe.defaults.get_user_default("Company"), "default_receivable_account")
-        if payer_type.lower() == "cash":
+        # if payer_type.lower() == "cash":
+        #     customer_advance_account = "Advance Received - AN"
+        # else:
+        #             customer_advance_account = "Debtors - AN"
+        payer = (payer_type or "").lower().strip()
+        authorized_amount = float(authorized_amount or 0)
+
+        if authorized_amount <= 0:
             customer_advance_account = "Advance Received - AN"
         else:
             customer_advance_account = "Debtors - AN"
@@ -241,12 +260,14 @@ def create_journal_entry(billing_data):
             "doctype": "Journal Entry",
             "posting_date": formatted_date,
             "custom_bill_number": reference_no,
+            # "cheque_no": transaction_id,
+            # "cheque_date": formatted_date,
             "bill_date":formatted_date,
-            "remark": f"Advance from {customer_name}",
+            "user_remark": f"Advance from {customer_name}",
             "custom_advance_type": custom_advance_type,
             "custom_patient_type": custom_patient_type,
             "custom_payer_type": payer_type,
-            "custom_uh_id": custom_uh_id,
+            "custom_uhid": custom_uhid,
             "custom_bill_category": "UHID Advance",
             "accounts": accounts
             # "accounts": [
@@ -268,6 +289,9 @@ def create_journal_entry(billing_data):
         if transaction_id:
             journal_entry.cheque_no = transaction_id
             journal_entry.cheque_date = formatted_date
+        else:
+            journal_entry.cheque_no = None
+            journal_entry.cheque_date = None
         journal_entry.insert()
         frappe.db.commit()
         journal_entry.submit()
@@ -297,6 +321,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Insurance"
         elif payer_type == "cash":
             customer_group = "Cash"
+        elif payer_type == "corporate":
+            customer_group = "Corporate"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
@@ -315,12 +341,4 @@ def get_or_create_customer(customer_name, payer_type=None):
     frappe.db.commit()
 
     return customer.name
-
-
-
-
-
-
-
-
 

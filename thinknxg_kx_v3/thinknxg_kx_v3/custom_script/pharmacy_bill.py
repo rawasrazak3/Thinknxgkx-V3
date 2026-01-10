@@ -1,3 +1,4 @@
+
 import frappe
 import requests
 import json
@@ -57,14 +58,43 @@ def fetch_op_billing(jwt_token, from_date, to_date):
         frappe.throw(f"Failed to fetch OP Pharmacy Billing data: {response.status_code} - {response.text}")
 
 def get_or_create_customer(customer_name):
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name})
+#     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name,})
+#     if existing_customer:
+#         return existing_customer
+    
+#     customer = frappe.get_doc({
+#         "doctype": "Customer",
+#         "customer_name": customer_name,
+#         "customer_group": "Individual",
+#         "territory": "All Territories"
+#     })
+
+ # Check if the customer already exists
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
     if existing_customer:
         return existing_customer
-    
+
+    # Determine customer group based on payer_type
+    if payer_type:
+        payer_type = payer_type.lower()
+        if payer_type == "insurance":
+            customer_group = "Insurance"
+        elif payer_type == "cash":
+            customer_group = "Cash"
+        elif payer_type == "corporate":
+            customer_group = "Corporate"
+        elif payer_type == "credit":
+            customer_group = "Credit"
+        else:
+            customer_group = "Individual"  # default fallback
+    else:
+        customer_group = "Individual"
+
+    # Create new customer
     customer = frappe.get_doc({
         "doctype": "Customer",
         "customer_name": customer_name,
-        "customer_group": "Individual",
+        "customer_group": customer_group,
         "territory": "All Territories"
     })
     customer.insert(ignore_permissions=True)
@@ -277,11 +307,11 @@ def create_journal_entry_from_billing(billing_data):
     due_amount= billing_data["patient_due_amount"]
 
     if is_due== "true":
-            item_rate = billing_data["total_amount"]-due_amount
+            item_rate = billing_data["taxable_amount"]-due_amount
     else:
-            item_rate = billing_data["total_amount"]
+            item_rate = billing_data["taxable_amount"]
     authorized_amount = billing_data.get("authorized_amount", 0)
-    discount_amount = billing_data["selling_amount"] - billing_data["total_amount"]
+    discount_amount = billing_data["selling_amount"] - billing_data["taxable_amount"]
     tax_amount = billing_data["tax"]
 
     # --- Fetch accounts dynamically from Company ---
@@ -298,7 +328,7 @@ def create_journal_entry_from_billing(billing_data):
         customer_advance_account = "Debtors - AN"
 
     # vat_account = getattr(company_doc, "default_tax_account", None) or frappe.db.get_single_value("Company", "default_tax_account")
-    vat_account = "Output VAT 5% - AN"
+    vat_account = "VAT 5% - AN"
     default_expense_account = company_doc.default_expense_account
     default_stock_in_hand = company_doc.default_inventory_account
     # discount_account = getattr(company_doc, "default_discount_account", None) or frappe.db.get_single_value("Company", "default_discount_account")
@@ -328,7 +358,7 @@ def create_journal_entry_from_billing(billing_data):
         },
     ]
     # Handling Credit Payment Mode
-    credit_payment = next((p for p in payment_details if p["payment_mode_code"].lower() == "credit"), None)
+    credit_payment = next((p for p in payment_details if p["payment_mode_code"].lower() in ["credit", "prepaid card"]), None)
     if authorized_amount>0:
         je_accounts.append({
             "account": debit_account,  # Replace with actual debtors account
@@ -359,7 +389,7 @@ def create_journal_entry_from_billing(billing_data):
 
     # Handling Other Payment Modes (UPI, Card, etc.)
     bank_payment_total = sum(
-        p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit","IP ADVANCE","uhid_advance"]
+        p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit", "prepaid card", "IP ADVANCE","uhid_advance"]
     )
     if bank_payment_total > 0:
         je_accounts.append({

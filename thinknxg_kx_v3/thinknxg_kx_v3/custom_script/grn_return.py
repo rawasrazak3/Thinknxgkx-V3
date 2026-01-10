@@ -1,3 +1,4 @@
+
 import frappe
 import requests
 import json
@@ -98,6 +99,7 @@ def create_journal_entry_for_return(grouped_return):
     dt = datetime.fromtimestamp(date_ts / 1000.0, gmt_plus_4)
     posting_date = dt.strftime('%Y-%m-%d')
     posting_time = dt.strftime('%H:%M:%S')
+    modify_datetime = dt.strftime('%Y-%m-%d %H:%M:%S')
     grn_date_raw = float(grouped_return["first_item"]["grn_date"])
     dt = datetime.fromtimestamp(grn_date_raw / 1000.0, gmt_plus_4)
     grn_date = dt.strftime('%Y-%m-%d')
@@ -114,12 +116,16 @@ def create_journal_entry_for_return(grouped_return):
     company = frappe.defaults.get_user_default("Company")
     
     # Fetch default accounts
-    stock_account = frappe.db.get_value("Account", {"account_name": "Stock In Hand", "company": company})
-    print("stock",stock_account)
-    creditor_account = frappe.db.get_value("Account", {"account_name": "Creditors", "company": company})
-    print("creditor",creditor_account)
+    # stock_account = frappe.db.get_value("Account", {"account_name": "Stock In Hand", "company": company})
+    # print("stock",stock_account)
+    # creditor_account = frappe.db.get_value("Account", {"account_name": "Creditors", "company": company})
+    # print("creditor",creditor_account)
 
-    vat_account = "Output VAT 5% - AN"
+    company_doc = frappe.get_doc("Company", company)
+    creditor_account = company_doc.default_payable_account
+    stock_account = company_doc.default_inventory_account
+
+    vat_account = "VAT 5% - AN"
 
     if not stock_account or not creditor_account:
         frappe.log_error("Stock or Creditors account not found for company: " + company)
@@ -143,6 +149,7 @@ def create_journal_entry_for_return(grouped_return):
         "naming_series": "KX-JV-.YYYY.-",
         "voucher_type": "Debit Note",
         "posting_date": posting_date,
+        "custom_modification_time": modify_datetime,
         "custom_grn_date":grn_date,
         "custom_bill_category": "GRN Return",
         "custom_return_no": dr_return_no,
