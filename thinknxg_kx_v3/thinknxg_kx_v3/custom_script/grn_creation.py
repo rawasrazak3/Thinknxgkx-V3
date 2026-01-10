@@ -1,3 +1,4 @@
+
 import frappe
 import requests
 import json
@@ -156,7 +157,7 @@ def create_journal_entry(billing_data):
 
         if not default_payable or not default_inventory:
             frappe.throw("Please set Default Payable Account and Default Inventory Account in Company master.")
-        vat_account = "Output VAT 5% - AN"
+        vat_account = " VAT 5% - AN"
 
         # Fetch Supplier Name
         supplier_doc = frappe.get_doc("Supplier", supplier)
