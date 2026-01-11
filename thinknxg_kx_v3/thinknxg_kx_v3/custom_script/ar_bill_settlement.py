@@ -458,7 +458,7 @@ billing_row = frappe.get_value(
 headers_token = fetch_api_details(billing_type)
 
 
-def get_or_create_customer(customer_name):
+def get_or_create_customer(customer_name, payer_type=None):
     # """Fetch existing customer or create a new one."""
     # existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name})
     # if existing_customer:
@@ -470,6 +470,8 @@ def get_or_create_customer(customer_name):
     #     "customer_group": "Individual",
     #     "territory": "All Territories"
     # })
+    if payer_type and payer_type.lower() == "cash":
+        return None
     # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
     if existing_customer:

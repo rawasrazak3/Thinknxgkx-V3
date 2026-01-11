@@ -197,6 +197,7 @@ def create_journal_entry(billing_data):
         custom_uhid = billing_data.get("uhId")
         amount = billing_data.get("amount")
         authorized_amount = billing_data.get("authorized_amount")
+        patient_name = billing_data.get("patient_name")
 
         # Fetch default receivable account or use a custom "Customer Advances" account
         # customer_advance_account = frappe.db.get_value("Company", frappe.defaults.get_user_default("Company"), "default_receivable_account")
@@ -225,8 +226,8 @@ def create_journal_entry(billing_data):
                 "account": customer_advance_account,
                 "debit_in_account_currency": amount,
                 "account_currency": paid_to_account_currency,
-                "party_type": "Customer" if customer else None,
-                "party": customer,
+                # "party_type": "Customer" if customer else None,
+                # "party": customer,
                 "is_advance": "Yes"
             })
 
@@ -251,8 +252,8 @@ def create_journal_entry(billing_data):
                 "account": customer_advance_account,
                 "credit_in_account_currency": amount,
                 "account_currency": paid_to_account_currency,
-                "party_type": "Customer" if customer else None,
-                "party": customer,
+                # "party_type": "Customer" if customer else None,
+                # "party": customer,
                 "is_advance": "Yes"
             })
 
@@ -267,6 +268,7 @@ def create_journal_entry(billing_data):
             "custom_advance_type": custom_advance_type,
             "custom_patient_type": custom_patient_type,
             "custom_payer_type": payer_type,
+            "custom_patient_name": patient_name,
             "custom_uhid": custom_uhid,
             "custom_bill_category": "UHID Advance",
             "accounts": accounts

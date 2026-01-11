@@ -552,10 +552,10 @@ def create_advance_refund_entry(billing_data):
         # Use fixed account based on mode of payment
         if mode_of_payment.lower() == "Cash":
             paid_to_account = cash_account
-        elif mode_of_payment.lower() == "Bank Transfer":
-            paid_to_account = bank_account
-        else:                                  # Card Payment
+        elif mode_of_payment.lower() == "Card Payment":
             paid_to_account = card_account
+        else:                                  # Card Payment
+            paid_to_account = bank_account
 
         paid_to_account_currency = frappe.db.get_value("Account", paid_to_account, "account_currency")
 
@@ -577,7 +577,7 @@ def create_advance_refund_entry(billing_data):
         existing_je = frappe.get_value(
             "Journal Entry",
             {
-                "bill_no": reference_no
+                "custom_bill_number": reference_no
             },
             "name"
         )
@@ -657,7 +657,9 @@ def create_advance_refund_entry(billing_data):
         return f"Failed to create Journal Entry: {str(e)}"
 
 
-def get_or_create_customer(customer_name):
+def get_or_create_customer(customer_name, payer_type=None):
+    if payer_type and payer_type.lower() == "cash":
+            return None
      # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
     if existing_customer:
@@ -666,13 +668,13 @@ def get_or_create_customer(customer_name):
     # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
-        if payer_type == "insurance":
+        if payer_type == "Insurance":
             customer_group = "Insurance"
-        elif payer_type == "cash":
+        elif payer_type == "Cash":
             customer_group = "Cash"
-        elif payer_type == "corporate":
+        elif payer_type == "Corporate":
             customer_group = "Corporate"
-        elif payer_type == "credit":
+        elif payer_type == "Credit":
             customer_group = "Credit"
         else:
             customer_group = "Individual"  # default fallback

@@ -397,7 +397,7 @@ def fetch_op_billing_refund(jwt_token, from_date, to_date):
     else:
         frappe.throw(f"Failed to fetch Pharmacy Refund data: {response.status_code} - {response.text}")
 
-def get_or_create_customer(customer_name):
+def get_or_create_customer(customer_name, payer_type=None):
     # existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name})
     # if existing_customer:
     #     return existing_customer
@@ -408,7 +408,8 @@ def get_or_create_customer(customer_name):
     #     "customer_group": "Individual",
     #     "territory": "All Territories"
     # })
-
+    if payer_type and payer_type.lower() == "cash":
+        return None
     # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
     if existing_customer:
@@ -624,14 +625,14 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "reference_name": reference_invoice
         },
         # Reverse receivable
-        # {
-        #     "account": debit_account,    # Debtors
-        #     "debit_in_account_currency": 0,
-        #     "credit_in_account_currency": item_rate,
-        #     "cost_center": cost_center,
-        #     "party_type": "Customer",
-        #     "party": customer
-        # },
+        {
+            "account": debit_account,    # Debtors
+            "debit_in_account_currency": 0,
+            "credit_in_account_currency": item_rate,
+            "cost_center": cost_center,
+            "party_type": "Customer",
+            "party": customer
+        },
     ]
 
     # Tax reversal
