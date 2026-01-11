@@ -638,7 +638,7 @@ def fetch_ip_billing(jwt_token, from_date, to_date):
     else:
         frappe.throw(f"Failed to fetch IPD Addendum Billing data: {response.status_code} - {response.text}")
 
-def get_or_create_customer(customer_name,uhid, payer_type=None):
+def get_or_create_customer(customer_name, payer_type=None):
     # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
     if existing_customer:
