@@ -57,7 +57,7 @@ def fetch_op_billing(jwt_token, from_date, to_date):
     else:
         frappe.throw(f"Failed to fetch OP Pharmacy Billing data: {response.status_code} - {response.text}")
 
-def get_or_create_customer(customer_name):
+def get_or_create_customer(customer_name, payer_type=None):
 #     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name,})
 #     if existing_customer:
 #         return existing_customer
@@ -68,7 +68,8 @@ def get_or_create_customer(customer_name):
 #         "customer_group": "Individual",
 #         "territory": "All Territories"
 #     })
-
+    if payer_type and payer_type.lower() == "cash":
+        return None
  # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
     if existing_customer:
