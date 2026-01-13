@@ -322,9 +322,6 @@ def create_journal_entry_from_billing_group(key, records, category):
         transfer_type = first_record.get("transfer_type")
         bill_no = first_record.get("transactionId")
         facility_name = first_record.get("facility_name")
-
-
-        
         
          # --- Fetch accounts dynamically from Company ---
         company = frappe.defaults.get_user_default("Company")
@@ -336,7 +333,7 @@ def create_journal_entry_from_billing_group(key, records, category):
         stock_acc = "Stock In Hand - AN"
         write_off_account = "Write Off - AN"
         consumption_acc = "Store Consumption - AN"
-        vat_account = "Output VAT 5% - AN"
+        vat_account = "VAT 5% - AN"
         default_expense_account = company_doc.default_expense_account
         default_stock_in_hand = company_doc.default_inventory_account
 

@@ -549,24 +549,33 @@ def get_jwt_token():
 #         frappe.throw(f"Failed to fetch OP Billing data: {response.status_code} - {response.text}")
 
 def fetch_op_billing(jwt_token, from_date, to_date):
+    print("fetching op billing...")
     headers_billing = {
         "Content-Type": headers_token["Content-Type"],
         "clientCode": headers_token["clientCode"],
         "integrationKey": headers_token["integrationKey"],
         "Authorization": f"Bearer {jwt_token}"
     }
+    print("headers:", headers_billing)
     
 
     # Convert milliseconds timestamps to ISO date strings
     from_date_str = datetime.fromtimestamp(from_date / 1000, tz=timezone(timedelta(hours=4))).strftime("%Y-%m-%d")
     to_date_str   = datetime.fromtimestamp(to_date / 1000, tz=timezone(timedelta(hours=4))).strftime("%Y-%m-%d")
+    print("from date")
+    print(from_date_str)
+    print("to date")
+    print(to_date_str)
 
     payload = {"requestJson": {"FROM": from_date_str, "TO": to_date_str}}
     response = requests.post(BILLING_URL, headers=headers_billing, json=payload)
+    # print(response.json())
+    # print("response above")
 
     if response.status_code == 200:
         if response.text.strip() == "":
             frappe.log(f"API returned empty response for dates {from_date_str} - {to_date_str}")
+            print("empty response")
             return {"jsonResponse": []}
         try:
             return response.json()
@@ -578,32 +587,24 @@ def fetch_op_billing(jwt_token, from_date, to_date):
 
 
 def get_or_create_customer(customer_name, payer_type=None):
-    print("creating or getting customer")
-    # If payer type is cash, don't create a customer
-    if payer_type and payer_type.lower() == "cash":
-        return None
-    # Check if the customer already exists
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
-    if existing_customer:
-        return existing_customer
-
-    # Determine customer group based on payer_type
+   # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
         if payer_type == "insurance":
             customer_group = "Insurance"
-        elif payer_type == "cash":
-            customer_group = "Cash"
         elif payer_type == "corporate":
             customer_group = "Corporate"
-        elif payer_type == "tpa":
-            customer_group = "TPA"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
-            customer_group = "Individual"  # default fallback
+            customer_group = "Cash"  # default fallback
     else:
-        customer_group = "Individual"
+        customer_group = "Cash"  # default if payer_type is None
+
+ # Check if the customer already exists
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
+    if existing_customer:
+        return existing_customer
 
     # Create new customer
     customer = frappe.get_doc({
@@ -719,9 +720,9 @@ def main():
 
         # Convert to timestamps in milliseconds for GMT+4
         from_date = int(datetime.combine(f_date, time.min, tzinfo=gmt_plus_4).timestamp() * 1000)
-        print("---f", from_date)
+        # print("---f", from_date)
         to_date = int(datetime.combine(t_date, time.max, tzinfo=gmt_plus_4).timestamp() * 1000)
-        print("----t", to_date)
+        # print("----t", to_date)
         billing_data = fetch_op_billing(jwt_token, from_date, to_date)
         frappe.log("OP Billing data fetched successfully.")
 
@@ -735,6 +736,8 @@ if __name__ == "__main__":
     main()
 
 def create_journal_entry_from_billing(billing_data):
+    print("billing details")
+    print(billing_data)
     bill_no = billing_data["bill_no"]
     payment_details = billing_data.get("payment_transaction_details", [])
     date = billing_data["g_creation_time"]
@@ -793,7 +796,7 @@ def create_journal_entry_from_billing(billing_data):
     customer = get_or_create_customer(customer_name,payer_type)
     patient = get_or_create_patient(patient_name, gender,uhid)
 
-    treating_department_name = billing_data.get("treating_department_name", "Default Dept")
+    treating_department_name = billing_data.get("treating_department_name")
     cost_center = get_or_create_cost_center(treating_department_name)
     # Amounts
     is_due = billing_data["is_due"]

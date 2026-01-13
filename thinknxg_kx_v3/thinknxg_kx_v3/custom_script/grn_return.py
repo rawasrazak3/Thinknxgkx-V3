@@ -113,7 +113,6 @@ def create_journal_entry_for_return(grouped_return):
         return
 
     # Get company from linked invoice if needed, or hardcode
-    company = frappe.defaults.get_user_default("Company")
     
     # Fetch default accounts
     # stock_account = frappe.db.get_value("Account", {"account_name": "Stock In Hand", "company": company})
@@ -121,15 +120,26 @@ def create_journal_entry_for_return(grouped_return):
     # creditor_account = frappe.db.get_value("Account", {"account_name": "Creditors", "company": company})
     # print("creditor",creditor_account)
 
-    company_doc = frappe.get_doc("Company", company)
-    creditor_account = company_doc.default_payable_account
-    stock_account = company_doc.default_inventory_account
+    # company = frappe.defaults.get_user_default("Company")
+    # company_doc = frappe.get_doc("Company", company)
+    # creditor_account = company_doc.default_payable_account
+    # stock_account = company_doc.default_inventory_account
 
+    # vat_account = "VAT 5% - AN"
+
+    # if not stock_account or not creditor_account:
+    #     frappe.log_error("Stock or Creditors account not found for company: " + company)
+    #     return
+    
+    company = frappe.defaults.get_user_default("Company")
+    company_defaults = frappe.get_doc("Company", company)
+    default_payable = company_defaults.default_payable_account
+    default_inventory = company_defaults.default_inventory_account
+
+    if not default_payable or not default_inventory:
+            frappe.throw("Please set Default Payable Account and Default Inventory Account in Company master.")
     vat_account = "VAT 5% - AN"
-
-    if not stock_account or not creditor_account:
-        frappe.log_error("Stock or Creditors account not found for company: " + company)
-        return
+    
     # Find original purchase invoice based on drNo
     original_invoice = frappe.get_all(
         "Journal Entry",
@@ -160,7 +170,7 @@ def create_journal_entry_for_return(grouped_return):
         "user_remark": f"Auto return for GRN {dr_no} - Return {dr_return_no}",
         "accounts": [
             {
-                "account": creditor_account,
+                "account": default_payable,
                 "party_type": "Supplier",
                 "party": supplier_name,
                 "debit_in_account_currency": total_amount + tax_amount,
@@ -169,7 +179,7 @@ def create_journal_entry_for_return(grouped_return):
                 "cost_center": None
             },
             {
-                "account": stock_account,
+                "account": default_inventory,
                 "credit_in_account_currency": total_amount,
                 "cost_center": None
             }

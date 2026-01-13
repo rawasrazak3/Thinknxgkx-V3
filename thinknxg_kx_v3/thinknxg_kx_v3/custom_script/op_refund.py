@@ -395,38 +395,23 @@ def fetch_op_billing_refund(jwt_token, from_date, to_date):
         frappe.throw(f"Failed to fetch OP Refund data: {response.status_code} - {response.text}")
 
 def get_or_create_customer(customer_name, payer_type=None):
-    # existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name})
-    # if existing_customer:
-    #     return existing_customer
-    
-    # customer = frappe.get_doc({
-    #     "doctype": "Customer",
-    #     "customer_name": customer_name,
-    #     "customer_group": "Individual",
-    #     "territory": "All Territories"
-    # })
-    if payer_type and payer_type.lower() == "cash":
-         return None
-     # Check if the customer already exists
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
-    if existing_customer:
-        return existing_customer
-
-    # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
         if payer_type == "insurance":
             customer_group = "Insurance"
-        elif payer_type == "cash":
-            customer_group = "Cash"
         elif payer_type == "corporate":
             customer_group = "Corporate"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
-            customer_group = "Individual"  # default fallback
+            customer_group = "Cash"  # default fallback
     else:
-        customer_group = "Individual"
+        customer_group = "Cash"  # default if payer_type is None
+
+ # Check if the customer already exists
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
+    if existing_customer:
+        return existing_customer
 
     # Create new customer
     customer = frappe.get_doc({
@@ -576,7 +561,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     patient_name = refund_data["patient_name"]
     gender = refund_data["patient_gender"]
 
-    customer = get_or_create_customer(customer_name)
+    customer = get_or_create_customer(customer_name, payer_type)
     patient = get_or_create_patient(patient_name, gender)
 
     treating_department_name = refund_data.get("treating_department_name")

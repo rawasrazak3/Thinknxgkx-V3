@@ -398,38 +398,24 @@ def fetch_op_billing_refund(jwt_token, from_date, to_date):
         frappe.throw(f"Failed to fetch Pharmacy Refund data: {response.status_code} - {response.text}")
 
 def get_or_create_customer(customer_name, payer_type=None):
-    # existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name})
-    # if existing_customer:
-    #     return existing_customer
-    
-    # customer = frappe.get_doc({
-    #     "doctype": "Customer",
-    #     "customer_name": customer_name,
-    #     "customer_group": "Individual",
-    #     "territory": "All Territories"
-    # })
-    if payer_type and payer_type.lower() == "cash":
-        return None
-    # Check if the customer already exists
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
-    if existing_customer:
-        return existing_customer
-
-    # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
         if payer_type == "insurance":
             customer_group = "Insurance"
-        elif payer_type == "cash":
-            customer_group = "Cash"
         elif payer_type == "corporate":
             customer_group = "Corporate"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
-            customer_group = "Individual"  # default fallback
+            customer_group = "Cash"  # default fallback
     else:
-        customer_group = "Individual"
+        customer_group = "Cash"  # default if payer_type is None
+
+ # Check if the customer already exists
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
+    if existing_customer:
+        return existing_customer
+    
 
     # Create new customer
     customer = frappe.get_doc({
@@ -455,32 +441,35 @@ def get_or_create_patient(patient_name,gender):
     customer.insert(ignore_permissions=True)
     frappe.db.commit()
     return customer.name
-def get_or_create_cost_center(treating_department_name):
-    cost_center_name = f"{treating_department_name} - AN"
-    
-    # Check if the cost center already exists by full name
-    existing = frappe.db.exists("Cost Center", cost_center_name)
-    if existing:
-        return cost_center_name
-    
-    # Determine parent based on treating_department_name
-    if treating_department_name is not None:     # even "", null, or any value
-        parent_cost_center = "Al Nile Hospital - AN"
 
-    # Create new cost center with full cost_center_name as document name
+def get_or_create_cost_center(treating_department_name):
+    company = "Al Nile Hospital"
+    parent_cost_center = f"{company} - AN"   #  ALWAYS defined
+
+    # Fallback if department is missing
+    if not treating_department_name:
+        treating_department_name = "HEAD OFFICE"
+
+    cost_center_name = f"{treating_department_name} - AN"
+
+    # Check if already exists
+    if frappe.db.exists("Cost Center", cost_center_name):
+        return cost_center_name
+
     cost_center = frappe.get_doc({
         "doctype": "Cost Center",
-        "name": cost_center_name,               # Explicitly set doc name to full name with suffix
-        "cost_center_name": treating_department_name,  # Display name without suffix
+        "name": cost_center_name,
+        "cost_center_name": treating_department_name,
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
-        "company": "Al Nile Hospital"
+        "company": company
     })
     cost_center.insert(ignore_permissions=True)
     frappe.db.commit()
-    frappe.msgprint(f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'")
-    
-    return cost_center_name  # Always return the full cost center name with suffix
+
+    frappe.log(f"Cost Center created: {cost_center_name}")
+    return cost_center_name
+
 
 @frappe.whitelist()
 def main():
@@ -546,10 +535,10 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     patient_name = refund_data["patient_name"]
     gender = refund_data["patient_gender"]
 
-    customer = get_or_create_customer(customer_name)
+    customer = get_or_create_customer(customer_name, payer_type)
     patient = get_or_create_patient(patient_name, gender)
 
-    treating_department_name = refund_data.get("treating_department_name", "Default Dept")
+    treating_department_name = refund_data.get("treating_department_name")
     cost_center = get_or_create_cost_center(treating_department_name)
 
     # Amounts (Refund)
@@ -621,8 +610,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "debit_in_account_currency": item_rate,
             "credit_in_account_currency": 0,
             "cost_center": cost_center,
-            "reference_type": "Journal Entry",
-            "reference_name": reference_invoice
+            # "reference_type": "Journal Entry",
+            # "reference_name": reference_invoice
         },
         # Reverse receivable
         {
