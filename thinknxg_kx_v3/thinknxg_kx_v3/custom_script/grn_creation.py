@@ -78,31 +78,48 @@ def get_or_create_customer(patient_name,supplier_code):
 
 
 def get_or_create_cost_center(department_name):
-    cost_center_name = f"{department_name} - AN"  # Append suffix to department name
+    # company = "Al Nile Hospital"
+    # company_default_cc = frappe.db.get_value(
+    #     "Company",
+    #     company,
+    #     "cost_center"
+    # )
     
-    # Check if the cost center already exists by full name
-    existing = frappe.db.exists("Cost Center", cost_center_name)
-    if existing:
-        return cost_center_name
-    
-    # Determine parent based on department_name
-    if department_name is not None:     # even "", null, or any value
-        parent_cost_center = "Al Nile Hospital - AN"
+    company = frappe.defaults.get_user_default("Company")
+    company_doc = frappe.get_doc("Company", company)
 
-    # Create new cost center with full cost_center_name as document name
+    company_default_cc = company_doc.cost_center
+
+    if not department_name:
+        return company_default_cc
+
+    cost_center_name = f"{department_name} - AN"
+
+
+    if frappe.db.exists("Cost Center", cost_center_name):
+        return cost_center_name
+
+    parent_cost_center = "Al Nile Hospital - AN"
+
+    # Create new cost center
     cost_center = frappe.get_doc({
         "doctype": "Cost Center",
-        "name": cost_center_name,               # Explicitly set doc name to full name with suffix
-        "cost_center_name": department_name,  # Display name without suffix
+        "name": cost_center_name,                 
+        "cost_center_name": department_name,  
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
-        "company": "Al Nile Hospital"
+        "company": company
     })
+
     cost_center.insert(ignore_permissions=True)
     frappe.db.commit()
-    frappe.msgprint(f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'")
-    
-    return cost_center_name  # Always return the full cost center name with suffix
+
+    frappe.msgprint(
+        f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'"
+    )
+
+    return cost_center_name
+
 
 def get_default_warehouse():
     return frappe.db.get_single_value("Stock Settings", "default_warehouse") or "Stores - AN"
@@ -160,17 +177,14 @@ def create_journal_entry(billing_data):
         total_tax = float(billing_data.get("total_tax", 0) or 0.0)
         bill_amount = float(billing_data.get("billAmount", 0) or 0.0)
 
-        department_name = billing_data.get("department_name")
-        if department_name:
-            cost_center = get_or_create_cost_center(department_name)
-        else:
-            cost_center = "HEADOFFICE - AN"
 
         # Fetch company defaults
         company = frappe.defaults.get_user_default("Company")
         company_defaults = frappe.get_doc("Company", company)
         default_payable = company_defaults.default_payable_account
         default_inventory = company_defaults.default_inventory_account
+        company_default_cc = company_defaults.cost_center
+
 
         if not default_payable or not default_inventory:
             frappe.throw("Please set Default Payable Account and Default Inventory Account in Company master.")
@@ -179,6 +193,12 @@ def create_journal_entry(billing_data):
         # Fetch Supplier Name
         supplier_doc = frappe.get_doc("Supplier", supplier)
         supplier_name = supplier_doc.supplier_name
+
+        department_name = billing_data.get("department_name")
+        if department_name:
+            cost_center = get_or_create_cost_center(department_name)
+        else:
+            cost_center = company_default_cc
 
         # Build Journal Entry (Basic Example: Debit Expense / Credit Supplier)
         journal_entry = {
