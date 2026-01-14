@@ -347,9 +347,12 @@ def create_advance_refund_entry(billing_data):
         payer_id = billing_data["payer_id"]
         customer = get_or_create_customer(customer_name, payer_type)
         receipt_no = billing_data.get("receipt_no")
+        patient_name = billing_data.get("patient_name")
+        custom_uhid = billing_data.get("uhId")
+
 
         custom_advance_type = billing_data.get("advance_type")
-        custom_patient_type = billing_data.get("patient_type_display")
+        custom_patient_type = billing_data.get("patient_type_code")
         custom_uh_id = billing_data.get("uhId")
         amount = billing_data.get("amount")
         store = billing_data.get("storeName")
@@ -365,6 +368,8 @@ def create_advance_refund_entry(billing_data):
             "custom_bill_number": refund_no,
             "custom_return_no": refund_no,
             "custom_receipt_no": receipt_no,
+            "custom_patient_name": patient_name,
+            "custom_uhid": custom_uhid,
             "remark": f"Advance refund to {customer_name}",
             "custom_advance_type": custom_advance_type,
             "custom_patient_type": custom_patient_type,
@@ -380,8 +385,8 @@ def create_advance_refund_entry(billing_data):
                     "account": customer_advance_account,
                     "debit_in_account_currency": amount,
                     "account_currency": paid_to_account_currency,
-                    "party_type": "Customer",
-                    "party": customer,
+                    # "party_type": "Customer",
+                    # "party": customer,
                     "is_advance":"Yes"
                 }
             ]
