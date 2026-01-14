@@ -470,10 +470,11 @@ def get_or_create_patient(patient_name,gender):
 def get_or_create_cost_center(treating_department_name):
     # Default parent (always defined)
     parent_cost_center = "Al Nile Hospital - AN"
+    default_cost_center = "HEAD OFFICE - AN"
 
     # Handle None / empty department safely
     if not treating_department_name:
-        return parent_cost_center
+        return default_cost_center
 
     cost_center_name = f"{treating_department_name} - AN"
 
