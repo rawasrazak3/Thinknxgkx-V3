@@ -134,10 +134,27 @@ def create_journal_entry(billing_data):
 
         supplier_code = billing_data["supplierCode"]
         supplier_name = billing_data["supplierName"]
-        supplier = frappe.db.exists("Supplier", {"custom_supplier_code": supplier_code, "disabled": 0})
+        supplier_gstin = billing_data["supplier_gstin"]
+        # supplier = frappe.db.exists("Supplier", {"custom_supplier_code": supplier_code, "disabled": 0})
+        # if not supplier:
+        #     frappe.log_error(f"Supplier {supplier_code} not found, skipping GRN {grn_number}")
+        #     return
+
+        # Try to find supplier by custom_supplier_code
+        supplier = frappe.db.get_value(
+            "Supplier",
+            {"custom_supplier_code": supplier_code, "disabled": 0},
+            "name"
+        )
+
+        # If not found, create supplier automatically
         if not supplier:
-            frappe.log_error(f"Supplier {supplier_code} not found, skipping GRN {grn_number}")
-            return
+            supplier = get_or_create_customer(
+                patient_name=billing_data["supplierName"],
+                supplier_code=supplier_code
+            )
+            frappe.log(f"Supplier {supplier_code} created: {supplier}")
+
 
         total_net_amount = float(billing_data.get("totalNetAmount", 0) or 0.0)
         total_tax = float(billing_data.get("total_tax", 0) or 0.0)
@@ -157,7 +174,7 @@ def create_journal_entry(billing_data):
 
         if not default_payable or not default_inventory:
             frappe.throw("Please set Default Payable Account and Default Inventory Account in Company master.")
-        vat_account = " VAT 5% - AN"
+        vat_account = "VAT 5% - AN"
 
         # Fetch Supplier Name
         supplier_doc = frappe.get_doc("Supplier", supplier)
@@ -178,6 +195,7 @@ def create_journal_entry(billing_data):
             "custom_grn_number": grn_number,
             "custom_store": store_name,
             "custom_supplier_name": supplier_name,
+            "custom_supplier_gstin": supplier_gstin,
             "user_remark": f"Auto-created from GRN {grn_number}",
             "accounts": []
         }

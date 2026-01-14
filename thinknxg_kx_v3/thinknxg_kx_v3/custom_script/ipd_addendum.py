@@ -639,26 +639,24 @@ def fetch_ip_billing(jwt_token, from_date, to_date):
         frappe.throw(f"Failed to fetch IPD Addendum Billing data: {response.status_code} - {response.text}")
 
 def get_or_create_customer(customer_name, payer_type=None):
-    # Check if the customer already exists
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
-    if existing_customer:
-        return existing_customer
-
-    # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
         if payer_type == "insurance":
             customer_group = "Insurance"
-        elif payer_type == "cash":
-            customer_group = "Cash"
         elif payer_type == "corporate":
             customer_group = "Corporate"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
-            customer_group = "Individual"  # default fallback
+            customer_group = "Cash"  # default fallback
     else:
-        customer_group = "Individual"
+        customer_group = "Cash"  # default if payer_type is None
+
+ # Check if the customer already exists
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
+    if existing_customer:
+        return existing_customer
+
 
     # Create new customer
     customer = frappe.get_doc({
@@ -766,7 +764,7 @@ def create_journal_entry_from_billing(billing_data):
     gender = billing_data["patient_gender"]
     uhid = billing_data["uhId"]
     payer_type = billing_data["payer_type"]
-    customer = get_or_create_customer(customer_name,uhid,payer_type)
+    customer = get_or_create_customer(customer_name, payer_type)
     patient = get_or_create_patient(patient_name, gender)
     payer = get_or_create_customer(payer_name,uhid,payer_type)
 
@@ -775,7 +773,7 @@ def create_journal_entry_from_billing(billing_data):
     has_ip_advance = any(payment.get("amount", 0) > 0 and payment.get("payment_mode_code") == "IP ADVANCE" for payment in payment_details)
 
     
-    treating_department_name = billing_data.get("treating_department_name", "Default Dept")
+    treating_department_name = billing_data.get("treating_department_name")
     cost_center = get_or_create_cost_center(treating_department_name)
     
     def get_or_create_item(service_name,service_type,service_code):

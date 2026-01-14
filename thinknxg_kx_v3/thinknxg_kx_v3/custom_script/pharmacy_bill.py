@@ -68,28 +68,25 @@ def get_or_create_customer(customer_name, payer_type=None):
 #         "customer_group": "Individual",
 #         "territory": "All Territories"
 #     })
-    if payer_type and payer_type.lower() == "cash":
-        return None
- # Check if the customer already exists
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":payer_type})
-    if existing_customer:
-        return existing_customer
-
-    # Determine customer group based on payer_type
+ # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
         if payer_type == "insurance":
             customer_group = "Insurance"
-        elif payer_type == "cash":
-            customer_group = "Cash"
         elif payer_type == "corporate":
             customer_group = "Corporate"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
-            customer_group = "Individual"  # default fallback
+            customer_group = "Cash"  # default fallback
     else:
-        customer_group = "Individual"
+        customer_group = "Cash"  # default if payer_type is None
+
+ # Check if the customer already exists
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
+    if existing_customer:
+        return existing_customer
+
 
     # Create new customer
     customer = frappe.get_doc({
@@ -186,7 +183,7 @@ def get_or_create_patient(patient_name,gender):
 def get_or_create_cost_center(treating_department_name):
     # Use a default name if empty
     if not treating_department_name:
-        treating_department_name = "General"  # or any default department
+        treating_department_name = "HEADOFFICE - AN"  # or any default department
 
     cost_center_name = f"{treating_department_name} - AN"
 
@@ -297,10 +294,10 @@ def create_journal_entry_from_billing(billing_data):
     patient_name = billing_data["patient_name"]
     gender = billing_data["patient_gender"]
 
-    customer = get_or_create_customer(customer_name)
+    customer = get_or_create_customer(customer_name, payer_type)
     patient = get_or_create_patient(patient_name, gender)
 
-    treating_department_name = billing_data.get("treating_department_name", "Default Dept")
+    treating_department_name = billing_data.get("treating_department_name")
     cost_center = get_or_create_cost_center(treating_department_name)
 
     # Amounts
