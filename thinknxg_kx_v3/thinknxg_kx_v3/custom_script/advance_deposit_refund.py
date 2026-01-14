@@ -269,15 +269,15 @@ def create_advance_refund_entry(billing_data):
     try:
         mode_of_payment = billing_data["payment_transaction_details"][0]["payment_mode_display"]
 
-        mode_of_payment_accounts = frappe.get_all(
-            "Mode of Payment Account",
-            filters={"parent": mode_of_payment},
-            fields=["default_account"],
-            limit=1
-        )
+        # mode_of_payment_accounts = frappe.get_all(
+        #     "Mode of Payment Account",
+        #     filters={"parent": mode_of_payment},
+        #     fields=["default_account"],
+        #     limit=1
+        # )
 
-        if not mode_of_payment_accounts:
-            return f"Failed: No default account found for mode of payment {mode_of_payment}"
+        # if not mode_of_payment_accounts:
+        #     return f"Failed: No default account found for mode of payment {mode_of_payment}"
         # --- Fetch accounts dynamically from Company ---
         company = frappe.defaults.get_user_default("Company")
         company_doc = frappe.get_doc("Company", company)
@@ -290,7 +290,7 @@ def create_advance_refund_entry(billing_data):
             paid_to_account = cash_account
         elif mode_of_payment.lower() == "Card Payment":
             paid_to_account = card_account
-        else:                                  # Card Payment
+        else:                                 
             paid_to_account = bank_account
 
         paid_to_account_currency = frappe.db.get_value("Account", paid_to_account, "account_currency")
@@ -307,18 +307,19 @@ def create_advance_refund_entry(billing_data):
         print("date--", formatted_date)
 
         reference_no = billing_data.get("receipt_no")
-        if not reference_no:
-            return "Failed: Reference No is missing."
+        refund_no = billing_data.get("refund_receipt_no")
+        # if not reference_no:
+        #     return "Failed: Reference No is missing."
 
         existing_je = frappe.get_value(
             "Journal Entry",
             {
-                "custom_bill_number": reference_no
+                "bill_no": reference_no
             },
             "name"
         )
 
-        if frappe.db.exists("Journal Entry", {"custom_bill_number": reference_no}):
+        if frappe.db.exists("Journal Entry", {"custom_bill_number": refund_no}):
             return f"Skipped: Journal Entry already exists."
 
 
@@ -343,7 +344,9 @@ def create_advance_refund_entry(billing_data):
 
         customer_name = billing_data.get("patient_name")
         payer_type = billing_data["payer_type"]
+        payer_id = billing_data["payer_id"]
         customer = get_or_create_customer(customer_name, payer_type)
+        receipt_no = billing_data.get("receipt_no")
 
         custom_advance_type = billing_data.get("advance_type")
         custom_patient_type = billing_data.get("patient_type_display")
@@ -358,9 +361,10 @@ def create_advance_refund_entry(billing_data):
             "doctype": "Journal Entry",
             "posting_date": formatted_date,
             "voucher_type" : "Credit Note",
-            "custom_bill_number": reference_no,
-            "cust"
-            "bill_date":formatted_date,
+            "bill_no": reference_no,
+            "custom_bill_number": refund_no,
+            "custom_return_no": refund_no,
+            "custom_receipt_no": receipt_no,
             "remark": f"Advance refund to {customer_name}",
             "custom_advance_type": custom_advance_type,
             "custom_patient_type": custom_patient_type,
