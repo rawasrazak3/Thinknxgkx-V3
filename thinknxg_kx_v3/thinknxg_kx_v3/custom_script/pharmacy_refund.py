@@ -90,7 +90,7 @@ def get_or_create_patient(patient_name,gender):
     return customer.name
 
 
-def get_or_create_cost_center(treating_department_name):
+def get_or_create_cost_center(department):
     # company = "Al Nile Hospital"
     # company_default_cc = frappe.db.get_value(
     #     "Company",
@@ -103,22 +103,21 @@ def get_or_create_cost_center(treating_department_name):
 
     company_default_cc = company_doc.cost_center
 
-    if not treating_department_name:
+    if not department:
         return company_default_cc
 
-    cost_center_name = f"{treating_department_name} - AN"
-
+    cost_center_name = f"{department} - AN"
 
     if frappe.db.exists("Cost Center", cost_center_name):
         return cost_center_name
 
-    parent_cost_center = "Al Nile Hospital - AN"
+    parent_cost_center = company_default_cc
 
     # Create new cost center
     cost_center = frappe.get_doc({
         "doctype": "Cost Center",
         "name": cost_center_name,                 
-        "cost_center_name": treating_department_name,  
+        "cost_center_name": department,  
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
         "company": company
@@ -132,6 +131,8 @@ def get_or_create_cost_center(treating_department_name):
     )
 
     return cost_center_name
+
+
 
 
 @frappe.whitelist()
@@ -181,16 +182,58 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     payment_details = refund_data.get("payment_transaction_details", [])
     date = refund_data["g_creation_time"]
     datetimes = date / 1000.0
+    modification_time = refund_data.get("g_modification_time", date)  # fallback if not present
+    mod_date = modification_time / 1000.0
 
     # Define GMT+4
     gmt_plus_4 = timezone(timedelta(hours=4))
     dt = datetime.fromtimestamp(datetimes, gmt_plus_4)
     formatted_date = dt.strftime('%Y-%m-%d')
     posting_time = dt.strftime('%H:%M:%S')
+    mod_dt = datetime.fromtimestamp(mod_date, gmt_plus_4)
+    mod_time = mod_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    if frappe.db.exists("Journal Entry", {"custom_bill_number": bill_no, "docstatus": ["!=", 2] ,"custom_bill_category": "PHARMACY REFUND"}):
+
+    existing_jv = frappe.db.get_value(
+        "Journal Entry",
+        {"custom_receipt_no": receipt_no, "docstatus": ["!=", 2] ,"custom_bill_category": "PHARMACY REFUND"},
+        ["name", "custom_modification_time"],
+        as_dict=True
+    )
+
+    if existing_jv:
+        stored_mod_time = existing_jv.get("custom_modification_time")
+        if stored_mod_time and str(stored_mod_time) == str(mod_time):
+            frappe.log(f"Journal Entry {bill_no} already up-to-date. Skipping...")
+            return existing_jv["name"]
+
+        # Cancel old invoice + related journals
+        je_doc = frappe.get_doc("Journal Entry", existing_jv["name"])
+        try:
+            # # Cancel linked journals
+            journals = frappe.get_all("Journal Entry",
+                filters={"custom_bill_number": bill_no, "docstatus": 1},
+                pluck="name")
+            for jn in journals:
+                je_doc = frappe.get_doc("Journal Entry", jn)
+                je_doc.cancel()
+                frappe.db.commit()
+                frappe.log(f"Cancelled JE {jn} for bill {bill_no}")
+
+            # Cancel invoice
+            je_doc.reload()
+            je_doc.cancel()
+            frappe.db.commit()
+            frappe.log(f"Cancelled JV {existing_jv['name']} for modified bill {bill_no}")
+        except Exception as e:
+            frappe.log_error(f"Error cancelling JE for bill {bill_no}: {e}")
+            return None
+
+    if frappe.db.exists("Journal Entry", {"custom_receipt_no": receipt_no, "docstatus": ["!=", 2] ,"custom_bill_category": "PHARMACY REFUND"}):
         frappe.log(f"Refund Journal Entry with bill_no {bill_no} already exists.")
         return
+    
+
 
     # Patient & Customer
     customer_name = refund_data["payer_name"]
@@ -201,8 +244,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     customer = get_or_create_customer(customer_name, payer_type)
     patient = get_or_create_patient(patient_name, gender)
 
-    treating_department_name = refund_data.get("treating_department_name")
-    cost_center = get_or_create_cost_center(treating_department_name)
+    department = refund_data.get("department")
+    cost_center = get_or_create_cost_center(department)
 
     # Amounts (Refund)
     item_rate = refund_data["taxable_amount"]
@@ -238,33 +281,51 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         fields=["name"],
         limit=1
     )
+    reference_invoice = None
+    original_cost_center = None
+
+    if original_jv:
+        reference_invoice = original_jv[0]["name"]
+
+        original_cost_center = frappe.db.get_value(
+            "Journal Entry Account",
+            {
+                "parent": reference_invoice,
+                "cost_center": ["is", "set"]
+            },
+            "cost_center"
+        )
+        if original_cost_center:
+            cost_center = original_cost_center
+        else:
+            department = refund_data.get("department")
+            cost_center = get_or_create_cost_center(department)
+
+
+        original_debtors_cc = None
+
+        if reference_invoice:
+            original_debtors_cc = frappe.db.get_value(
+                "Journal Entry Account",
+                {
+                    "parent": reference_invoice,
+                    "party_type": "Customer",
+                    "credit_in_account_currency": [">", 0]
+                },
+                "cost_center"
+            )
+
+        debtors_cost_center = original_debtors_cc 
+
     reference_invoice = original_jv[0]["name"] if original_jv else None
     if not reference_invoice:
         frappe.log(f"No original pharmacy Journal found with bill No: {bill_no}")
+
+
     total_uepr = sum(
         (item.get("ueprValue") or 0)
         for item in refund_data.get("item_details", [])
     )
-
-    # je_accounts = [
-    #     {
-    #         "account": debit_account,   # Reverse sales (debit sales account)
-    #         "debit_in_account_currency": item_rate,
-    #         "credit_in_account_currency": 0,
-    #         "cost_center": cost_center
-    #     },
-    #     {
-    #         "account": credit_account,  # Credit receivable/customer
-    #         "debit_in_account_currency": item_rate,
-    #         "credit_in_account_currency": 0,
-    #         "cost_center": cost_center,
-    #         # "reference_type": "Journal Entry",
-    #         # "reference_name": reference_invoice
-
-    #         # "party_type": "Customer",
-    #         # "party": customer
-    #     },
-    # ]
 
     je_accounts = [
         # Reverse income
@@ -273,17 +334,17 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "debit_in_account_currency": item_rate,
             "credit_in_account_currency": 0,
             "cost_center": cost_center,
-            # "reference_type": "Journal Entry",
-            # "reference_name": reference_invoice
+            "reference_type": "Journal Entry" if reference_invoice else None,
+            "reference_name": reference_invoice
         },
         # Reverse receivable
         {
             "account": debit_account,    # Debtors
             "debit_in_account_currency": 0,
             "credit_in_account_currency": item_rate,
-            "cost_center": cost_center,
+            "cost_center": debtors_cost_center,
             "party_type": "Customer",
-            "party": customer
+            "party": customer,
         },
     ]
 
@@ -334,17 +395,15 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 # "reference_type": "Journal Entry",
                 # "reference_name": reference_invoice
             })
-        elif mode in ["credit", "prepaid card"]:
+        elif mode in ["credit"]:
             je_accounts.append({
                 "account": debit_account,
                 "debit_in_account_currency":0,
                 "credit_in_account_currency":amount,
                 "party_type": "Customer",
                 "party": customer,
-                "reference_type": "Journal Entry",
-                "reference_name": reference_invoice
             })
-        elif mode in ["upi", "card_payment", "bank", "neft"]:
+        elif mode in ["upi", "card_payment", "bank", "neft", "prepaid card"]:
             je_accounts.append({
                 "account": bank_account,
                 "debit_in_account_currency": 0,
@@ -368,8 +427,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         "voucher_type": "Journal Entry",
         "posting_date": formatted_date,
         "posting_time": posting_time,
+        "custom_modification_time": mod_time,
         "custom_patient_name": patient_name,
-        "custom_patient": patient_name,
         "custom_bill_number": bill_no,
         "custom_bill_category": "PHARMACY REFUND",
         "custom_payer_name": customer_name,

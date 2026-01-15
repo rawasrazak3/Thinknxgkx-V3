@@ -77,6 +77,7 @@ def get_existing_supplier(supplier_code):
     return supplier_name
 
 def create_journal_entry_for_return(grouped_return):
+    bill_no = grouped_return["first_item"]["grnBillNo"]
     dr_return_no = grouped_return["first_item"]["drReturnNo"]
     dr_no = grouped_return["first_item"]["drNo"]
     supplier = grouped_return["first_item"].get("supplierCode")
@@ -141,14 +142,14 @@ def create_journal_entry_for_return(grouped_return):
     vat_account = "VAT 5% - AN"
     
     # Find original purchase invoice based on drNo
-    original_invoice = frappe.get_all(
+    original_je = frappe.get_all(
         "Journal Entry",
-        filters={"custom_grn_number": dr_no, "docstatus": 1},
+        filters={"custom_bill_number": bill_no, "custom_bill_category": "GRN", "docstatus": 1},
         fields=["name"],
         limit=1
     )
 
-    reference_invoice = original_invoice[0]["name"] if original_invoice else None
+    reference_invoice = original_je[0]["name"] if original_je else None
     if not reference_invoice:
         frappe.log(f"No original Purchase Invoice found with GRN No: {dr_no}")
 
@@ -163,7 +164,8 @@ def create_journal_entry_for_return(grouped_return):
         "custom_grn_date":grn_date,
         "custom_bill_category": "GRN Return",
         "custom_return_no": dr_return_no,
-        "custom_bill_number": dr_no,
+        "custom_grn_number": dr_no,
+        "custom_bill_number": bill_no,
         "custom_supplier_name": supplier_n,
         "custom_store": store_name,
         "company": company,
@@ -175,7 +177,7 @@ def create_journal_entry_for_return(grouped_return):
                 "party": supplier_name,
                 "debit_in_account_currency": total_amount + tax_amount,
                 "reference_type": "Journal Entry",
-                "reference_name": reference_invoice,
+                "reference_name": reference_invoice if reference_invoice else None,
                 "cost_center": None
             },
             {

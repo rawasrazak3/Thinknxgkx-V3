@@ -159,7 +159,7 @@ def create_journal_entry(billing_data):
         existing_je = frappe.get_value(
             "Journal Entry",
             {
-                "bill_no": reference_no
+                "custom_bill_number": reference_no
             },
             "name"
         )
@@ -167,7 +167,6 @@ def create_journal_entry(billing_data):
         if frappe.db.exists("Journal Entry", {"custom_bill_number": reference_no,"custom_bill_category": "UHID Advance","docstatus":1}):
             print("jv exists",reference_no)
             return f"Skipped: Journal Entry already exists."
-
 
     
         transaction_id = ""
@@ -259,6 +258,7 @@ def create_journal_entry(billing_data):
 
         journal_entry = frappe.get_doc({
             "doctype": "Journal Entry",
+            "naming_series": "KX-JV-.YYYY.-",
             "posting_date": formatted_date,
             "custom_bill_number": reference_no,
             # "cheque_no": transaction_id,
