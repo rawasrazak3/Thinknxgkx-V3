@@ -315,6 +315,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Insurance"
         elif payer_type == "corporate":
             customer_group = "Corporate"
+        elif payer_type == "tpa":
+            customer_group = "TPA"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:

@@ -541,6 +541,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Insurance"
         elif payer_type == "corporate":
             customer_group = "Corporate"
+        elif payer_type == "tpa":
+            customer_group = "TPA"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
@@ -583,31 +585,47 @@ def get_or_create_patient(patient_name,gender,uhid):
 
 
 def get_or_create_cost_center(treating_department_name):
-    cost_center_name = f"{treating_department_name} - AN"
+    # company = "Al Nile Hospital"
+    # company_default_cc = frappe.db.get_value(
+    #     "Company",
+    #     company,
+    #     "cost_center"
+    # )
     
-    # Check if the cost center already exists by full name
-    existing = frappe.db.exists("Cost Center", cost_center_name)
-    if existing:
-        return cost_center_name
-    
-    # Determine parent based on treating_department_name
-    if treating_department_name is not None:     # even "", null, or any value
-        parent_cost_center = "Al Nile Hospital - AN"
+    company = frappe.defaults.get_user_default("Company")
+    company_doc = frappe.get_doc("Company", company)
 
-    # Create new cost center with full cost_center_name as document name
+    company_default_cc = company_doc.cost_center
+
+    if not treating_department_name:
+        return company_default_cc
+
+    cost_center_name = f"{treating_department_name} - AN"
+
+
+    if frappe.db.exists("Cost Center", cost_center_name):
+        return cost_center_name
+
+    parent_cost_center = "Al Nile Hospital - AN"
+
+    # Create new cost center
     cost_center = frappe.get_doc({
         "doctype": "Cost Center",
-        "name": cost_center_name,               # Explicitly set doc name to full name with suffix
-        "cost_center_name": treating_department_name,  # Display name without suffix
+        "name": cost_center_name,                 
+        "cost_center_name": treating_department_name,  
         "parent_cost_center": parent_cost_center,
         "is_group": 0,
-        "company": "Al Nile Hospital"
+        "company": company
     })
+
     cost_center.insert(ignore_permissions=True)
     frappe.db.commit()
-    frappe.msgprint(f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'")
-    
-    return cost_center_name  # Always return the full cost center name with suffix
+
+    frappe.msgprint(
+        f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'"
+    )
+
+    return cost_center_name
 
 @frappe.whitelist()
 def main():
