@@ -209,7 +209,7 @@ def create_journal_entry(billing_data):
             "custom_grn_date":grn_date,
             "custom_bill_category": "GRN",
             "custom_modification_time": modify_datetime,
-            "voucher_type": "Journal Entry",
+            # "voucher_type": "Journal Entry",
             "company": "Al Nile Hospital",
             "custom_bill_number": bill_no,
             "custom_grn_number": grn_number,

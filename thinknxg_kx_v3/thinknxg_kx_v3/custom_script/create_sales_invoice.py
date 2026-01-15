@@ -54,6 +54,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Corporate"
         elif payer_type == "tpa":
             customer_group = "TPA"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
@@ -310,46 +312,63 @@ def create_journal_entry_from_billing(billing_data):
         })
         
 
-    # Handling Cash Payment Mode
+    # # Handling Cash Payment Mode
+    # for payment in payment_details:
+    #     if payment["payment_mode_code"] == "cash":
+    #         je_accounts.append({
+    #             "account": cash_account,  # Replace with actual cash account
+    #             "debit_in_account_currency": payment["amount"],    # Cash received
+    #             "credit_in_account_currency": 0
+    #         })
+
+    # # Handling Advance Payment Mode
+    #     elif payment["payment_mode_code"] == "UHID ADVANCE":
+    #         je_accounts.append({
+    #             "account": customer_advance_account,  # Replace with actual advance account
+    #             "debit_in_account_currency": payment["amount"],
+    #             "credit_in_account_currency": 0
+    #         })
+    
+    # # Handling Bank Payment Mode
+    #     elif payment["payment_mode_code"] in ["prepaid card", "Bank Transfer"]:
+    #         je_accounts.append({
+    #             "account": bank_account,  
+    #             "debit_in_account_currency": payment["amount"],   
+    #             "credit_in_account_currency": 0
+    #         })
+
     for payment in payment_details:
-        if payment["payment_mode_code"].lower() == "cash":
+        mode = payment.get("payment_mode_code", "").strip().lower()
+        amount = payment.get("amount", 0)
+
+        if amount <= 0:
+            continue
+
+        # CASH
+        if mode == "cash":
             je_accounts.append({
-                "account": cash_account,  # Replace with actual cash account
-                "debit_in_account_currency": payment["amount"],    # Cash received
+                "account": cash_account,
+                "debit_in_account_currency": amount,
                 "credit_in_account_currency": 0
             })
 
-    # Handling Advance Payment Mode
-    for payment in payment_details:
-        if payment["payment_mode_code"].lower() in ["ip advance","uhid_advance"]:
+        # UHID / IP ADVANCE
+        elif mode == "UHID ADVANCE":
             je_accounts.append({
-                "account": customer_advance_account,  # Replace with actual advance account
-                "debit_in_account_currency": payment["amount"],
+                "account": customer_advance_account,
+                "debit_in_account_currency": amount,
                 "credit_in_account_currency": 0
             })
 
-    # Handling Other Payment Modes (UPI, Card, etc.)
-    bank_payment_total = sum(
-        p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit","IP ADVANCE","uhid_advance"]
-    )
-    if bank_payment_total > 0:
-        je_accounts.append({
-            "account": bank_account,  # Replace with actual bank account
-            "debit_in_account_currency": bank_payment_total,
-            "credit_in_account_currency": 0,
-            # "reference_type": "Sales Invoice",
-            # "reference_name":sales_invoice_name
-        })
+        # PREPAID / BANK
+        elif mode in ["prepaid card", "bank transfer"]:
+            je_accounts.append({
+                "account": bank_account,
+                "debit_in_account_currency": amount,
+                "credit_in_account_currency": 0
+            })
 
-    # Handling due amount
-    # if is_due == "true" and due_amount > 0:
-    #     je_accounts.append({
-    #         "account": "Due Ledger - AN",  # Replace with actual bank account
-    #         "debit_in_account_currency": due_amount,
-    #         "credit_in_account_currency": 0,
-    #     #     "reference_type": "Sales Invoice",
-    #     #     "reference_name":sales_invoice_name
-    #     })
+
 
     if billing_data.get("is_due") and due_amount > 0:
         je_accounts.append({

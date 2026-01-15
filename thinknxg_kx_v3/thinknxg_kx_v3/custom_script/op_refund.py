@@ -181,12 +181,58 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     payment_details = refund_data.get("payment_transaction_details", [])
     date = refund_data["g_creation_time"]
     datetimes = date / 1000.0
+    modification_time = refund_data.get("g_modify_time", date)  # fallback if not present
+    mod_date = modification_time / 1000.0
 
     # Define GMT+4
     gmt_plus_4 = timezone(timedelta(hours=4))
     dt = datetime.fromtimestamp(datetimes, gmt_plus_4)
     formatted_date = dt.strftime('%Y-%m-%d')
     posting_time = dt.strftime('%H:%M:%S')
+    mod_dt = datetime.fromtimestamp(mod_date, gmt_plus_4)
+    mod_time = mod_dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    existing_jv = frappe.db.get_value(
+        "Journal Entry",
+        {"custom_bill_number": bill_no, "docstatus": ["!=", 2],"custom_bill_category": "OP REFUND"},
+        ["name", "custom_modification_time"],
+        as_dict=True
+    )
+
+    if existing_jv:
+        stored_mod_time = existing_jv.get("custom_modification_time")
+        # Case 1: Both have modification time → compare
+        if stored_mod_time and mod_time and str(stored_mod_time) == str(mod_time):
+            frappe.log(f"Sales Invoice {bill_no} already up-to-date. Skipping...")
+            return existing_jv["name"]
+
+        # Case 2: Neither has modification time → treat as already synced, skip
+        if not stored_mod_time :
+            frappe.log(f"Sales Invoice {bill_no} has no modification info, assuming up-to-date. Skipping...")
+            print("Journal Entry bill_no has no modification info, assuming up-to-date. Skipping...",bill_no)
+            return existing_jv["name"]
+
+        # Cancel old invoice + related journals
+        je_doc = frappe.get_doc("Journal Entry", existing_jv["name"])
+        try:
+            # Cancel linked journals
+            journals = frappe.get_all("Journal Entry",
+                filters={"custom_bill_number": receipt_no, "docstatus": 1},
+                pluck="name")
+            for jn in journals:
+                je_doc = frappe.get_doc("Journal Entry", jn)
+                je_doc.cancel()
+                frappe.db.commit()
+                frappe.log(f"Cancelled JE {jn} for bill {bill_no}")
+
+            # Cancel invoice
+            je_doc.reload()
+            je_doc.cancel()
+            frappe.db.commit()
+            frappe.log(f"Cancelled SI {existing_jv['name']} for modified bill {bill_no}")
+        except Exception as e:
+            frappe.log_error(f"Error cancelling SI/JE for bill {bill_no}: {e}")
+            return None
 
     if frappe.db.exists("Journal Entry", {"custom_bill_number": bill_no, "docstatus": ["!=", 2] ,"custom_bill_category": "OP REFUND"}):
         frappe.log(f"Refund Journal Entry with bill_no {bill_no} already exists.")
@@ -227,37 +273,55 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         for item in refund_data.get("item_details", [])
     )
 
-    #  # 🔵 FETCH ORIGINAL OP BILLING JOURNAL ENTRY (REFERENCE)
-    # original_billing_je = frappe.db.get_value(
-    #     "Journal Entry",
-    #     {
-    #         "custom_bill_number": bill_no,
-    #         "custom_bill_category": "OP Billing",
-    #         "docstatus": 1
-    #     },
-    #     "name"
-    # )
 
-    # if not original_billing_je:
-    #     frappe.log_error(
-    #         f"Original OP Billing JE not found for bill_no: {bill_no}"
-    #     )
-    #     return
 
     original_billing_je = frappe.get_all(
         "Journal Entry",
-        filters={
-            "custom_bill_number": bill_no,
-            "custom_bill_category": "OP Billing",
-            "docstatus": 1
-        },
+        filters={"custom_bill_number": bill_no, "docstatus": 1,"custom_bill_category": "OP Billing"},
         fields=["name"],
         limit=1
     )
-    reference_invoice = original_billing_je[0]["name"] if original_billing_je else None
+    reference_invoice = None
+    original_cost_center = None
 
+    if original_billing_je:
+        reference_invoice = original_billing_je[0]["name"]
+
+        original_cost_center = frappe.db.get_value(
+            "Journal Entry Account",
+            {
+                "parent": reference_invoice,
+                "cost_center": ["is", "set"]
+            },
+            "cost_center"
+        )
+        if original_cost_center:
+            cost_center = original_cost_center
+        else:
+            treating_department_name = refund_data.get("treating_department_name")
+            cost_center = get_or_create_cost_center(treating_department_name)
+
+
+        original_sales_cc = None
+
+        if reference_invoice:
+            original_sales_cc = frappe.db.get_value(
+                "Journal Entry Account",
+                {
+                    "parent": reference_invoice,
+                    "account": credit_account,
+                    "credit_in_account_currency": [">", 0]
+                },
+                "cost_center"
+            )
+
+        sales_cost_center = original_sales_cc 
+
+    reference_invoice = original_billing_je[0]["name"] if original_billing_je else None
     if not reference_invoice:
         frappe.log(f"No original OP Billing JE found with bill No: {bill_no}")
+
+
 
 
     je_accounts = [
@@ -271,9 +335,9 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "account": credit_account,  # Credit receivable/customer
             "debit_in_account_currency": item_rate,
             "credit_in_account_currency": 0,
-            "cost_center": cost_center,
-            # "reference_type": "Journal Entry",
-            # "reference_name": reference_invoice
+            "cost_center": sales_cost_center,
+            "reference_type": "Journal Entry" if reference_invoice else None,
+            "reference_name": reference_invoice
             # "party_type": "Customer",
             # "party": customer
         },
@@ -285,7 +349,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "account": vat_account,
             "debit_in_account_currency": tax_amount,
             "credit_in_account_currency": 0,
-            "cost_center": cost_center
+            "cost_center": sales_cost_center
         })
 
     # UEPR reversal
@@ -295,7 +359,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "account": default_stock_in_hand,
                 "debit_in_account_currency": total_uepr,
                 "credit_in_account_currency": 0,
-                "cost_center": cost_center
+                "cost_center": sales_cost_center
             },
             {
                 "account": default_expense_account,
@@ -350,13 +414,13 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             })
 
         # Only add reference if original billing JE exists
-        if je_account and reference_invoice:
-            je_account.update({
-                "reference_type": "Journal Entry",
-                "reference_name": reference_invoice
-            })
-        if je_account:
-            je_accounts.append(je_account)
+        # if je_account and reference_invoice:
+        #     je_account.update({
+        #         "reference_type": "Journal Entry",
+        #         "reference_name": reference_invoice
+        #     })
+        # if je_account:
+        #     je_accounts.append(je_account)
 
     # --- Create Refund JE ---
     je = frappe.get_doc({
@@ -365,8 +429,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         "voucher_type": "Journal Entry",
         "posting_date": formatted_date,
         "posting_time": posting_time,
+        "custom_modification_time": mod_time,
         "custom_patient_name": patient_name,
-        "custom_patient": patient_name,
         "custom_bill_number": bill_no,
         "custom_bill_category": "OP Refund",
         "custom_payer_name": customer_name,

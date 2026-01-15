@@ -128,19 +128,24 @@ def create_advance_refund_entry(billing_data):
         # if not reference_no:
         #     return "Failed: Reference No is missing."
 
-        existing_je = frappe.get_value(
-            "Journal Entry",
-            {
-                "bill_no": reference_no
-            },
-            "name"
+
+        original_billing_je = frappe.get_all(
+        "Journal Entry",
+        filters={
+            "custom_bill_number": reference_no,
+            "custom_bill_category": "UHID Advance",
+            "docstatus": 1
+        },
+        fields=["name"],
+        limit=1
         )
 
-        if frappe.db.exists("Journal Entry", {"custom_bill_number": refund_no}):
-            return f"Skipped: Journal Entry already exists."
+        reference_invoice = original_billing_je[0]["name"] if original_billing_je else None
+
+        if not reference_invoice:
+            frappe.log(f"No original UHID Advance JE found with bill No: {reference_no}")
 
 
-    
         transaction_id = ""
         for tx in billing_data.get("payment_transaction_details", []):
             if tx.get("transaction_id"):
@@ -148,16 +153,6 @@ def create_advance_refund_entry(billing_data):
                 break
 
         frappe.log_error("Transaction ID: " + str(transaction_id), "Advance Billing Log")
-
-
-        # Check for existing Journal Entry
-        existing_je = frappe.get_value(
-            "Journal Entry",
-            {"cheque_no": reference_no, "posting_date": formatted_date},
-            "name"
-        )
-        if existing_je:
-            return f"Skipped: Journal Entry {existing_je} already exists."
 
         customer_name = billing_data.get("patient_name")
         payer_type = billing_data["payer_type"]
@@ -177,12 +172,13 @@ def create_advance_refund_entry(billing_data):
         # Fetch default receivable account or use a custom "Customer Advances" account
         # customer_advance_account = frappe.db.get_value("Company", frappe.defaults.get_user_default("Company"), "default_receivable_account")
         customer_advance_account = "Advance Received - AN"
+
         journal_entry = frappe.get_doc({
             "doctype": "Journal Entry",
+            "naming_series": "KX-JV-.YYYY.-",
             "posting_date": formatted_date,
             "voucher_type" : "Credit Note",
-            "bill_no": reference_no,
-            "custom_bill_number": refund_no,
+            "custom_bill_number": reference_no,
             "custom_return_no": refund_no,
             "custom_receipt_no": receipt_no,
             "custom_patient_name": patient_name,
@@ -202,6 +198,8 @@ def create_advance_refund_entry(billing_data):
                     "account": customer_advance_account,
                     "debit_in_account_currency": amount,
                     "account_currency": paid_to_account_currency,
+                    "reference_type": "Journal Entry" if reference_invoice else None,
+                    "reference_name": reference_invoice,
                     # "party_type": "Customer",
                     # "party": customer,
                     "is_advance":"Yes"
