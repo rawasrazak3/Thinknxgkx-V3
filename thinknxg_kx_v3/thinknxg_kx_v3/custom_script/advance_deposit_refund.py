@@ -152,9 +152,9 @@ def create_advance_refund_entry(billing_data):
                 transaction_id = tx.get("transaction_id")
                 break
 
-        frappe.log_error("Transaction ID: " + str(transaction_id), "Advance Billing Log")
+        # frappe.log_error("Transaction ID: " + str(transaction_id), "Advance Billing Log")
 
-        customer_name = billing_data.get("patient_name")
+        customer_name = billing_data.get("payer_name")
         payer_type = billing_data["payer_type"]
         payer_id = billing_data["payer_id"]
         customer = get_or_create_customer(customer_name, payer_type)
@@ -221,6 +221,10 @@ def create_advance_refund_entry(billing_data):
 
 
 def get_or_create_customer(customer_name, payer_type=None):
+    # If payer type is cash, don't create a customer
+    if payer_type and payer_type.lower() == "cash":
+        return None
+    
      # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
@@ -230,6 +234,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Corporate"
         elif payer_type == "tpa":
             customer_group = "TPA"
+        elif payer_type == "cash":
+            customer_group == "Cash"
         elif payer_type == "credit":
             customer_group = "Credit"
         else:
@@ -237,7 +243,7 @@ def get_or_create_customer(customer_name, payer_type=None):
     else:
         customer_group = "Cash"  # default if payer_type is None
 
- # Check if the customer already exists
+    # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
     if existing_customer:
         return existing_customer

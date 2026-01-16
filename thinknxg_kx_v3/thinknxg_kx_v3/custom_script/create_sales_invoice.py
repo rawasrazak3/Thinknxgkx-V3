@@ -45,6 +45,9 @@ def fetch_op_billing(jwt_token, from_date, to_date):
 
 
 def get_or_create_customer(customer_name, payer_type=None):
+    # If payer type is cash, don't create a customer
+    if payer_type and payer_type.lower() == "cash":
+        return None
    # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
@@ -62,8 +65,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Cash"  # default fallback
     else:
         customer_group = "Cash"  # default if payer_type is None
-
- # Check if the customer already exists
+    
+    # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
     if existing_customer:
         return existing_customer
@@ -79,20 +82,50 @@ def get_or_create_customer(customer_name, payer_type=None):
     frappe.db.commit()
     return customer.name
 
-def get_or_create_patient(patient_name,gender,uhid):
-    existing_patient = frappe.db.exists("Patient", {"patient_name": patient_name})
+# def get_or_create_patient(patient_name,gender,uhid):
+#     existing_patient = frappe.db.exists("Patient", {"patient_name": patient_name})
+#     if existing_patient:
+#         return existing_patient
+    
+#     customer = frappe.get_doc({
+#         "doctype": "Patient",
+#         "first_name": patient_name,
+#         "sex": gender,
+#         "uid":uhid
+#     })
+#     customer.insert(ignore_permissions=True)
+#     frappe.db.commit()
+#     return customer.name
+
+def get_or_create_patient(patient_name, gender, uhid):
+    # ALWAYS check by UID (unique field)
+    existing_patient = frappe.db.get_value(
+        "Patient",
+        {"uid": uhid},
+        "name"
+    )
+
     if existing_patient:
         return existing_patient
-    
-    customer = frappe.get_doc({
+
+    # Create only if UID not found
+    patient = frappe.get_doc({
         "doctype": "Patient",
+        "patient_name": patient_name,
         "first_name": patient_name,
         "sex": gender,
-        "uid":uhid
+        "uid": uhid,
+        "status": "Active"
     })
-    customer.insert(ignore_permissions=True)
-    frappe.db.commit()
-    return customer.name
+
+    try:
+        patient.insert(ignore_permissions=True)
+    except frappe.UniqueValidationError:
+        # Safety net for race conditions
+        return frappe.db.get_value("Patient", {"uid": uhid}, "name")
+
+    return patient.name
+
 
 
 def get_or_create_cost_center(treating_department_name):
@@ -353,15 +386,17 @@ def create_journal_entry_from_billing(billing_data):
             })
 
         # UHID / IP ADVANCE
-        elif mode == "UHID ADVANCE":
+        elif mode == "uhid advance":
             je_accounts.append({
-                "account": customer_advance_account,
+                "account": "Advance Received - AN",
                 "debit_in_account_currency": amount,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                # "party_type": "Customer",
+                # "party": customer,
             })
 
         # PREPAID / BANK
-        elif mode in ["prepaid card", "bank transfer"]:
+        elif mode in ["prepaid card", "bank transfer", "neft"]:
             je_accounts.append({
                 "account": bank_account,
                 "debit_in_account_currency": amount,
@@ -428,7 +463,7 @@ def create_journal_entry_from_billing(billing_data):
         "posting_time": posting_time,
         "custom_modification_time": mod_time,  # store mod time
         "custom_patient_name": patient_name,
-        "custom_patient": patient_name,
+        "custom_patient": patient,
         "custom_bill_number": bill_no,
         "custom_bill_category" :"OP Billing",
         "custom_payer_name": customer_name,

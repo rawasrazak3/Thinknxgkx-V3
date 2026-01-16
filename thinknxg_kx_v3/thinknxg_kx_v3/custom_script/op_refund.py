@@ -43,12 +43,18 @@ def fetch_op_billing_refund(jwt_token, from_date, to_date):
         frappe.throw(f"Failed to fetch OP Refund data: {response.status_code} - {response.text}")
 
 def get_or_create_customer(customer_name, payer_type=None):
+     # If payer type is cash, don't create a customer
+    if payer_type and payer_type.lower() == "cash":
+        return None
+     
     if payer_type:
         payer_type = payer_type.lower()
         if payer_type == "insurance":
             customer_group = "Insurance"
         elif payer_type == "corporate":
             customer_group = "Corporate"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "tpa":
             customer_group = "TPA"
         elif payer_type == "credit":
@@ -58,11 +64,11 @@ def get_or_create_customer(customer_name, payer_type=None):
     else:
         customer_group = "Cash"  # default if payer_type is None
 
- # Check if the customer already exists
+     # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
     if existing_customer:
         return existing_customer
-
+    
     # Create new customer
     customer = frappe.get_doc({
         "doctype": "Customer",
@@ -244,11 +250,17 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     patient_name = refund_data["patient_name"]
     gender = refund_data["patient_gender"]
 
+    patient_refund_amount = refund_data.get("patient_refund_amount", 0) or 0
+    payer_refund_amount = refund_data.get("payer_refund_amount", 0) or 0
+
+
     customer = get_or_create_customer(customer_name, payer_type)
     patient = get_or_create_patient(patient_name, gender)
 
     treating_department_name = refund_data.get("treating_department_name")
     cost_center = get_or_create_cost_center(treating_department_name)
+    sales_cost_center = cost_center
+
 
     # Amounts (Refund)
     item_rate = refund_data["taxable_amount"]
@@ -283,6 +295,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     )
     reference_invoice = None
     original_cost_center = None
+    
 
     if original_billing_je:
         reference_invoice = original_billing_je[0]["name"]
@@ -352,6 +365,20 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "cost_center": sales_cost_center
         })
 
+    # ---- Insurance / Payer refund (credit receivable) ----
+    if payer_refund_amount > 0:
+        je_accounts.append({
+            "account": debit_account,  # Debtors - AN
+            "debit_in_account_currency": 0,
+            "credit_in_account_currency": payer_refund_amount,
+            "party_type": "Customer",
+            "party": customer,
+            "reference_type": "Journal Entry",
+            "reference_name": reference_invoice,
+            "cost_center": cost_center
+        })
+
+
     # UEPR reversal
     if total_uepr > 0:
         je_accounts.extend([
@@ -368,6 +395,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "cost_center": cost_center
             }
         ])
+    
 
     # Payment Modes (Refunds)
     for payment in payment_details:

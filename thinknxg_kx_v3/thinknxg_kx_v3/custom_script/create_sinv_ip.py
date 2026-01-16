@@ -533,7 +533,10 @@ def fetch_op_billing(jwt_token, from_date, to_date):
         frappe.throw(f"Failed to fetch OP Billing data: {response.status_code} - {response.text}")
 
 def get_or_create_customer(customer_name, payer_type=None):
-    print("creating or getting customer")
+     # If payer type is cash, don't create a customer
+    if payer_type and payer_type.lower() == "cash":
+        return None
+   
    # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
@@ -541,6 +544,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Insurance"
         elif payer_type == "corporate":
             customer_group = "Corporate"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "tpa":
             customer_group = "TPA"
         elif payer_type == "credit":
@@ -550,12 +555,11 @@ def get_or_create_customer(customer_name, payer_type=None):
     else:
         customer_group = "Cash"  # default if payer_type is None
 
- # Check if the customer already exists
+     # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
     if existing_customer:
         return existing_customer
-
-
+    
     # Create new customer
     customer = frappe.get_doc({
         "doctype": "Customer",
@@ -887,7 +891,7 @@ def create_journal_entry_from_billing(billing_data):
         "posting_time": posting_time,
         "custom_modification_time": mod_time,  # store mod time
         "custom_patient_name": patient_name,
-        "custom_patient": patient_name,
+        "custom_patient": patient,
         "custom_bill_number": bill_no,
         "custom_bill_category" :"IP Billing",
         "custom_payer_name": customer_name,
