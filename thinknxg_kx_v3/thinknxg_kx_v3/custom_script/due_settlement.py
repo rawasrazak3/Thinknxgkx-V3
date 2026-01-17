@@ -232,6 +232,10 @@ def create_journal_entry(billing_data):
         return f"Failed to create Journal Entry: {str(e)}"
 
 def get_or_create_customer(customer_name, payer_type=None):
+     # If payer type is cash, don't create a customer
+    if payer_type and payer_type.lower() == "cash":
+        return None
+
     # Determine customer group based on payer_type
     if payer_type:
         payer_type = payer_type.lower()
@@ -239,6 +243,8 @@ def get_or_create_customer(customer_name, payer_type=None):
             customer_group = "Insurance"
         elif payer_type == "corporate":
             customer_group = "Corporate"
+        elif payer_type == "cash":
+            customer_group = "Cash"
         elif payer_type == "tpa":
             customer_group = "TPA"
         elif payer_type == "credit":
@@ -248,12 +254,11 @@ def get_or_create_customer(customer_name, payer_type=None):
     else:
         customer_group = "Cash"  # default if payer_type is None
 
- # Check if the customer already exists
+    # Check if the customer already exists
     existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
     if existing_customer:
         return existing_customer
-
-
+    
     # Create new customer
     customer = frappe.get_doc({
         "doctype": "Customer",

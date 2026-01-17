@@ -176,6 +176,8 @@ def create_journal_entry(billing_data):
         total_net_amount = float(billing_data.get("totalNetAmount", 0) or 0.0)
         total_tax = float(billing_data.get("total_tax", 0) or 0.0)
         bill_amount = float(billing_data.get("billAmount", 0) or 0.0)
+        total_grn = float(billing_data.get("total_grn", 0) or 0.0)
+
 
 
         # Fetch company defaults
@@ -244,7 +246,7 @@ def create_journal_entry(billing_data):
             "party_type": "Supplier",
             "party": supplier,
             "debit_in_account_currency": 0,
-            "credit_in_account_currency": bill_amount,
+            "credit_in_account_currency": total_grn,
             "cost_center": cost_center
         })
         #     "accounts": [
