@@ -529,6 +529,7 @@ def create_uepr_journal_entry(reference_name, billing_data):
 
     je_doc = frappe.get_doc({
         "doctype": "Journal Entry",
+        "naming_series": "KX-JV-.YYYY.-",
         "posting_date": posting_date,
         "custom_bill_category": "IPD ADDENDUM",
         "custom_uh_id": custom_uh_id,

@@ -175,6 +175,7 @@ def create_journal_entry(billing_data):
         #Create the Journal Entry
         je_doc = frappe.get_doc({
             "doctype": "Journal Entry",
+            "naming_series": "KX-JV-.YYYY.-",
             "posting_date": formatted_date,
             "accounts": je_entries,
             "user_remark": f"Doctor Payout for: {customer_name}",

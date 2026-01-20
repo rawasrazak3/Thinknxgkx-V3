@@ -395,8 +395,15 @@ def create_journal_entry_from_billing(billing_data):
                 # "party": customer,
             })
 
-        # PREPAID / BANK
-        elif mode in ["prepaid card", "bank transfer", "neft"]:
+        # BANK
+        elif mode in ["bank transfer", "neft"]:
+            je_accounts.append({
+                "account": "0429028333140012 - BANK MUSCAT - AN",
+                "debit_in_account_currency": amount,
+                "credit_in_account_currency": 0
+            })
+
+        elif mode == "prepaid card":
             je_accounts.append({
                 "account": bank_account,
                 "debit_in_account_currency": amount,
