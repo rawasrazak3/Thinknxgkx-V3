@@ -113,6 +113,8 @@ def create_journal_entry_from_billing_group(key, records, category):
         transfer_type = first_record.get("transfer_type")
         bill_no = first_record.get("transactionId")
         facility_name = first_record.get("facility_name")
+        transaction_type = first_record.get("transactionType")
+        store_name = first_record.get("storeName")
         
          # --- Fetch accounts dynamically from Company ---
         company = frappe.defaults.get_user_default("Company")
@@ -136,6 +138,7 @@ def create_journal_entry_from_billing_group(key, records, category):
         if total_value <= 0:
             return f"Failed: No valid payment amount for bill no {bill_no}"
 
+    
         # Date conversion
         date = first_record["g_creation_time"]
         datetimes = date / 1000.0
@@ -185,7 +188,10 @@ def create_journal_entry_from_billing_group(key, records, category):
         #Create the Journal Entry
         je_doc = frappe.get_doc({
             "doctype": "Journal Entry",
+            "naming_series": "KX-JV-.YYYY.-",
             "posting_date": formatted_date,
+            "custom_store": store_name,
+            "custom_transaction_type": transaction_type,
             "custom_bill_number":bill_no,
             "accounts": je_entries,
             "user_remark": f" Stock Consumption for Bill No: {bill_no}",

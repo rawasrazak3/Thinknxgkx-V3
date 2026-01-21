@@ -443,6 +443,7 @@ def create_merged_journal_entry(bill_no, transactions):
         # CREATE JE
         je = frappe.get_doc({
             "doctype": "Journal Entry",
+            "naming_series": "KX-JV-.YYYY.-",
             "posting_date": nowdate(),
             "accounts": je_entries,
             "user_remark": f"AR Settlement Consolidated for Bill No: {bill_no}",
