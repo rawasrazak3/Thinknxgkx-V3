@@ -424,13 +424,20 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "reference_type": "Journal Entry",
                 "reference_name": reference_invoice
             })
-        elif mode in ["upi", "card_payment","prepaid card", "bank"]:
+        elif mode in ["upi", "card_payment","prepaid card"]:
             je_accounts.append({
                 "account": bank_account,
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
                 # "reference_name": reference_invoice
+            })
+         # BANK
+        elif mode in ["bank transfer", "neft"]:
+            je_accounts.append({
+                "account": "0429028333140012 - BANK MUSCAT - AN",
+                "debit_in_account_currency": 0,
+                "credit_in_account_currency": amount
             })
         elif mode == "ip advance":
             je_accounts.append({

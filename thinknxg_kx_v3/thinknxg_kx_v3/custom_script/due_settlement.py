@@ -128,21 +128,21 @@ def create_journal_entry(billing_data):
         # Initialize JE entries
         je_entries = []
 
-        # #Duplicate check: same Employee, Date, and Amount
-        # existing_je = frappe.db.exists(
-        #     "Journal Entry",
-        #     {
-        #         "posting_date": formatted_date,
-        #         "docstatus": 1,  # submitted
-        #         "user_remark": f"AR Settlement for Bill No: {bill_no}"
-        #     }
-        # )
-        # if existing_je:
-        #     frappe.logger().info(f"[JE DEBUG] Duplicate found, skipping JE creation. Existing JE: {existing_je}")
-        #     return f"Skipped: Journal Entry {existing_je} already exists"
 
-                #Credit the payer (customer)
-            # Credit the payer
+        existing_je = frappe.db.exists(
+            "Journal Entry",
+            {
+                "posting_date": formatted_date,
+                "docstatus": 1,  # submitted
+                "user_remark": f"AR Settlement for Bill No: {bill_no}"
+            }
+        )
+        if existing_je:
+            frappe.logger().info(f"[JE DEBUG] Duplicate found, skipping JE creation. Existing JE: {existing_je}")
+            return f"Skipped: Journal Entry {existing_je} already exists"
+
+    
+        # Credit the payer
         if customer:
             # is due:true
             credit_entry = {
@@ -181,10 +181,10 @@ def create_journal_entry(billing_data):
 
             if mode == "cash":
                 account = cash_account
-            elif mode in ["upi", "card", "bank","neft"]:
+            elif mode in ["upi", "card", "prepaid card", "credit"]:
                 account = bank_account
-            elif mode == "credit":
-                account = bank_account
+            elif mode in ["bank transfer", "neft"]:
+                account = "0429028333140012 - BANK MUSCAT - AN"
             else:
                 account = bank_account
 

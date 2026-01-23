@@ -475,18 +475,46 @@ def create_journal_entry(reference_name, billing_data):
                 # "reference_name":sales_invoice_name
             })
 
-    # Handling Other Payment Modes (UPI, Card, etc.)
-    bank_payment_total = sum(
-        p["amount"] for p in payment_details if p["payment_mode_code"] not in ["cash", "credit","IP ADVANCE"]
+    # # Handling Other Payment Modes (UPI, Card, etc.)
+    # bank_payment_total = sum(
+    #     p["amount"] for p in payment_details if p["payment_mode_code"] not in ["cash", "credit","IP ADVANCE"]
+    # )
+    # if bank_payment_total > 0:
+    #     je_entries.append({
+    #         "account": bank_account,  # Replace with actual bank account
+    #         "debit_in_account_currency": bank_payment_total,
+    #         "credit_in_account_currency": 0,
+    #         # "reference_type": "Sales Invoice",
+    #         # "reference_name":sales_invoice_name
+    #     })
+
+    bank_transfer_account = "0429028333140012 - BANK MUSCAT - AN"
+
+    bank_transfer_total = sum(
+        p["amount"] for p in payment_details
+        if p["payment_mode_code"].lower() in ("bank transfer", "neft")
     )
-    if bank_payment_total > 0:
+
+    other_bank_total = sum(
+        p["amount"] for p in payment_details
+        if p["payment_mode_code"].lower() not in ("cash", "credit", "ip advance", "bank transfer", "neft")
+    )
+
+    if bank_transfer_total > 0:
         je_entries.append({
-            "account": bank_account,  # Replace with actual bank account
-            "debit_in_account_currency": bank_payment_total,
+            "account": bank_transfer_account,
+            "debit_in_account_currency": bank_transfer_total,
             "credit_in_account_currency": 0,
-            # "reference_type": "Sales Invoice",
-            # "reference_name":sales_invoice_name
         })
+
+    if other_bank_total > 0:
+        je_entries.append({
+            "account": bank_account,
+            "debit_in_account_currency": other_bank_total,
+            "credit_in_account_currency": 0,
+        })
+
+
 
     # Create Journal Entry if there are valid transactions
     if je_entries:
