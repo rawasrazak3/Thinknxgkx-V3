@@ -821,18 +821,51 @@ def create_journal_entry_from_billing(billing_data):
                 "party": customer if payer_type.lower()!="cash" else None,
             })
 
-    # Handling Other Payment Modes (UPI, Card, etc.)
-    bank_payment_total = sum(
-        p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit","ip advance","uhid_advance"] and p["transaction_type"].lower() !="refund"
+    # # Handling Other Payment Modes (UPI, Card, etc.)
+    # bank_payment_total = sum(
+    #     p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit","ip advance","uhid_advance"] and p["transaction_type"].lower() !="refund"
+    # )
+    # if bank_payment_total > 0:
+    #     je_accounts.append({
+    #         "account": bank_account,  # Replace with actual bank account
+    #         "debit_in_account_currency": bank_payment_total,
+    #         "credit_in_account_currency": 0,
+    #         # "reference_type": "Sales Invoice",
+    #         # "reference_name":sales_invoice_name
+    #     })
+
+    
+    bank_transfer_account = "0429028333140012 - BANK MUSCAT - AN"
+
+    bank_transfer_total = sum(
+        p["amount"] for p in payment_details
+        if p["payment_mode_code"].lower() in ["bank transfer", "neft"]
+        and p["transaction_type"].lower() != "refund"
     )
-    if bank_payment_total > 0:
+
+    other_bank_total = sum(
+        p["amount"] for p in payment_details
+        if p["payment_mode_code"].lower() not in [
+            "cash", "credit", "ip advance", "uhid_advance", "bank transfer", "neft"
+        ]
+        and p["transaction_type"].lower() != "refund"
+    )
+
+    if bank_transfer_total > 0:
         je_accounts.append({
-            "account": bank_account,  # Replace with actual bank account
-            "debit_in_account_currency": bank_payment_total,
+            "account": bank_transfer_account,
+            "debit_in_account_currency": bank_transfer_total,
             "credit_in_account_currency": 0,
-            # "reference_type": "Sales Invoice",
-            # "reference_name":sales_invoice_name
         })
+
+    if other_bank_total > 0:
+        je_accounts.append({
+            "account": bank_account,
+            "debit_in_account_currency": other_bank_total,
+            "credit_in_account_currency": 0,
+        })
+
+
 
     # Handling due amount
     if is_due == "true" and due_amount > 0:
@@ -925,11 +958,22 @@ def create_advance_refund_entry(payment, company, customer, cost_center, patient
         cash_account = company_doc.default_cash_account
         bank_account = company_doc.default_bank_account
         
-        # Decide refund credit account (Cash / Bank)
-        if payment["payment_mode_code"].lower() == "cash":
+        # # Decide refund credit account (Cash / Bank)
+        # if payment["payment_mode_code"].lower() == "cash":
+        #     refund_account = cash_account
+        # else:
+        #     refund_account = bank_account
+
+
+        mode = payment["payment_mode_code"].lower()
+
+        if mode == "cash":
             refund_account = cash_account
+        elif mode in ("bank transfer", "neft"):
+            refund_account = "0429028333140012 - BANK MUSCAT - AN"
         else:
             refund_account = bank_account
+
 
         je_accounts = [
             {

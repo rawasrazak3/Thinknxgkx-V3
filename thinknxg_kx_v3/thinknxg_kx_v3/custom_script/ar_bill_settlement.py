@@ -401,7 +401,10 @@ def create_merged_journal_entry(bill_no, transactions):
                     continue
 
                 account = (
-                    cash_account if mode == "cash"
+                    cash_account 
+                    if mode == "cash"
+                    else "0429028333140012 - BANK MUSCAT - AN"
+                    if mode in ("bank transfer", "neft")
                     else bank_account
                 )
 

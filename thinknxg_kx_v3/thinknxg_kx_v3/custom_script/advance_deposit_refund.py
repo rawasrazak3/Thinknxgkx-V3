@@ -105,8 +105,10 @@ def create_advance_refund_entry(billing_data):
         # Use fixed account based on mode of payment
         if mode_of_payment.lower() == "Cash":
             paid_to_account = cash_account
-        elif mode_of_payment.lower() == "Card Payment":
+        elif mode_of_payment.lower() in ["Card Payment", "credit", "prepaid card"]:
             paid_to_account = card_account
+        elif mode_of_payment.lower() in ["bank transfer", "neft"]:
+              paid_to_account = "0429028333140012 - BANK MUSCAT - AN"
         else:                                 
             paid_to_account = bank_account
 

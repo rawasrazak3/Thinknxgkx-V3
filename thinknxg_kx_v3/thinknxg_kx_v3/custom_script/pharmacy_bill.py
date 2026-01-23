@@ -348,9 +348,18 @@ def create_journal_entry_from_billing(billing_data):
                 "credit_in_account_currency": 0
             })
 
+    #handing bank transfer payment mode
+    for payment in payment_details:
+        if payment["payment_mode_code"].lower() in ["bank transfer", "neft"]:
+            je_accounts.append({
+                "account": "0429028333140012 - BANK MUSCAT - AN",
+                "debit_in_account_currency": payment["amount"],
+                "credit_in_account_currency": 0
+            })
+
     # Handling Other Payment Modes (UPI, Card, etc.)
     bank_payment_total = sum(
-        p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit", "prepaid card", "IP ADVANCE","uhid_advance"]
+        p["amount"] for p in payment_details if p["payment_mode_code"].lower() not in ["cash", "credit", "prepaid card", "IP ADVANCE","uhid_advance","bank transfer", "neft"]
     )
     if bank_payment_total > 0:
         je_accounts.append({
