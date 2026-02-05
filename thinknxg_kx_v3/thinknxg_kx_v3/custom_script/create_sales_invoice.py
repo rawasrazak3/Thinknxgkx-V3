@@ -233,7 +233,7 @@ def create_journal_entry_from_billing(billing_data):
     # Check if JE already exists
     existing_je = frappe.db.get_value(
         "Journal Entry",
-        {"custom_bill_number": bill_no, "docstatus": 1},
+        {"custom_bill_number": bill_no, "custom_bill_category": "OP Billing", "docstatus": 1},
         ["name", "custom_modification_time"],
         as_dict=True
     )
@@ -256,7 +256,7 @@ def create_journal_entry_from_billing(billing_data):
             return None
    
 
-    if frappe.db.exists("Journal Entry", {"custom_bill_number": bill_no, "docstatus": ["!=", 2]}):
+    if frappe.db.exists("Journal Entry", {"custom_bill_number": bill_no, "custom_bill_category": "OP Billing", "docstatus": ["!=", 2]}):
         frappe.log(f"Journal Entry with bill_no {bill_no} already exists.")
         return
 
