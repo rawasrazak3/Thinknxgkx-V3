@@ -366,17 +366,37 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
         })
 
     # ---- Insurance / Payer refund (credit receivable) ----
+    # if payer_refund_amount > 0:
+    #     je_accounts.append({
+    #         "account": debit_account,  # Debtors - AN
+    #         "debit_in_account_currency": 0,
+    #         "credit_in_account_currency": payer_refund_amount,
+    #         "party_type": "Customer",
+    #         "party": customer,
+    #         "reference_type": "Journal Entry",
+    #         "reference_name": reference_invoice,
+    #         "cost_center": cost_center
+    #     })
+    
     if payer_refund_amount > 0:
-        je_accounts.append({
+        debtor_row = {
             "account": debit_account,  # Debtors - AN
             "debit_in_account_currency": 0,
             "credit_in_account_currency": payer_refund_amount,
             "party_type": "Customer",
             "party": customer,
-            "reference_type": "Journal Entry",
-            "reference_name": reference_invoice,
             "cost_center": cost_center
-        })
+        }
+
+        # ONLY add reference if original billing JE exists
+        if original_billing_je:
+            debtor_row.update({
+                "reference_type": "Journal Entry",
+                "reference_name": reference_invoice
+            })
+
+        je_accounts.append(debtor_row)
+
 
 
     # UEPR reversal
@@ -399,7 +419,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
 
     # Payment Modes (Refunds)
     for payment in payment_details:
-        mode = payment["payment_mode_code"].lower()
+        mode = payment.get("payment_mode_code", "").lower()
         amount = payment.get("amount", 0.0)
         if amount <= 0:
             continue
