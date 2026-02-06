@@ -23,17 +23,13 @@ app_license = "mit"
 
 # Includes in <head>
 # ------------------
-# fixtures = [
-#     {
-#     "doctype": "Custom Field",
-#         "filters": {
-#             "module": ["in", ["thinknxg kx v3"]]
-#             }
-#     },
-# ]
-
-
-fixtures=[
+fixtures = [
+    {
+    "doctype": "Custom Field",
+        "filters": {
+            "module": ["in", ["thinknxg kx v3"]]
+            }
+    },
     {
     	"doctype": "Custom Field",
         "filters": [
