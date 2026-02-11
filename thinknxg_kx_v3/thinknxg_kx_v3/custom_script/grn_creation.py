@@ -303,11 +303,11 @@ def main():
         if to_date_raw:
             t_date = getdate(to_date_raw)
         else:
-            t_date = add_days(nowdate(), -4)
+            t_date = getdate(add_days(nowdate(), -4))
 
         # Get no_of_days from settings and calculate from_date
-        no_of_days = cint(settings.get("no_of_days") or 25)  # default 3 days if not set
-        f_date = add_days(t_date, -no_of_days)
+        no_of_days = cint(settings.get("no_of_days") or 3)  # default 3 days if not set
+        f_date = getdate(add_days(t_date, -no_of_days))
         # Define GMT+4 timezone
         gmt_plus_4 = timezone(timedelta(hours=4))
 
