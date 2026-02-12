@@ -43,6 +43,44 @@ def fetch_advance_billing(jwt_token, from_date, to_date):
         return response.json()
     else:
         frappe.throw(f"Failed to fetch stock consumption data: {response.status_code} - {response.text}")
+
+def get_or_create_cost_center(store_name):
+    company = frappe.defaults.get_user_default("Company")
+    company_doc = frappe.get_doc("Company", company)
+
+    company_default_cc = company_doc.cost_center
+
+    if not store_name:
+        return company_default_cc
+
+    cost_center_name = f"{store_name} - AN"
+
+    # Check the actual Cost Center name, not just store_name
+    if frappe.db.exists("Cost Center", cost_center_name):
+        return cost_center_name 
+
+    parent_cost_center = "Al Nile Hospital - AN"
+
+    # Create new cost center
+    cost_center = frappe.get_doc({
+        "doctype": "Cost Center",
+        "name": cost_center_name,                 
+        "cost_center_name": store_name,  
+        "parent_cost_center": parent_cost_center,
+        "is_group": 0,
+        "company": company
+    })
+
+    cost_center.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    frappe.msgprint(
+        f"Cost Center '{cost_center_name}' created under '{parent_cost_center}'"
+    )
+
+    return cost_center_name  
+
+
 @frappe.whitelist()
 def main():
     try:
@@ -129,6 +167,7 @@ def create_journal_entry_from_billing_group(key, records, category):
         vat_account = "VAT 5% - AN"
         default_expense_account = company_doc.default_expense_account
         default_stock_in_hand = company_doc.default_inventory_account
+        cc_name = get_or_create_cost_center(store_name)
 
         # Total amount from payment details
         total_value = sum([float(r.get("ueprValue", 0)) for r in records])
@@ -168,7 +207,8 @@ def create_journal_entry_from_billing_group(key, records, category):
         credit_entry = {
             "account": stock_acc,  
             "credit_in_account_currency": total_value,
-            "debit_in_account_currency": 0
+            "debit_in_account_currency": 0,
+            "cost_center": cc_name
         }
         je_entries.append(credit_entry)
         frappe.logger().info(f"[JE DEBUG] Added Credit Entry: {credit_entry}")
@@ -176,7 +216,8 @@ def create_journal_entry_from_billing_group(key, records, category):
         debit_entry = {
             "account": consumption_acc,
             "debit_in_account_currency": total_value,
-            "credit_in_account_currency": 0
+            "credit_in_account_currency": 0,
+            "cost_center": cc_name
         }
         je_entries.append(debit_entry)
         frappe.logger().info(f"[JE DEBUG] Added Debit Entry: {debit_entry}")
