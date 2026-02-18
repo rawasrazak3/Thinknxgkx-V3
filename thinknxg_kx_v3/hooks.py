@@ -179,16 +179,16 @@ doctype_js = {
 
 scheduler_events = {
     "cron": {
-        "40 23 * * *": [  # Daily at 11:52
+        "40 23 * * *": [  # Daily at 11:40
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.advance_deposit.main"
         ],
-        "41 23 * * *": [  # Daily at 11:54
+        "41 23 * * *": [  # Daily at 11:41
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.supplier_creation.main",
         ],
-        "42 23 * * *": [  # Daily at 11:54
+        "42 23 * * *": [  # Daily at 11:42
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.create_sales_invoice.main",
         ],
-        "56 23 * * *": [  # Daily at 11:56
+        "52 23 * * *": [  # Daily at 11:52
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.grn_creation.main",
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.pharmacy_bill.main",
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.create_sinv_ip.main",
@@ -200,6 +200,8 @@ scheduler_events = {
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.advance_deposit_refund.main",
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.ar_bill_settlement.main",
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.doctor_payout.main",
+        ],
+        "57 23 * * *": [  # Daily at 11:57 PM
             "thinknxg_kx_v3.thinknxg_kx_v3.custom_script.stock_consumption.main",
         ],
     }
