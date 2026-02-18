@@ -208,7 +208,8 @@ def create_journal_entry_from_billing_group(key, records, category):
             "account": stock_acc,  
             "credit_in_account_currency": total_value,
             "debit_in_account_currency": 0,
-            "cost_center": cc_name
+            "cost_center": cc_name,
+            "project": "STOCK CONSUMPTION"
         }
         je_entries.append(credit_entry)
         frappe.logger().info(f"[JE DEBUG] Added Credit Entry: {credit_entry}")
@@ -217,7 +218,8 @@ def create_journal_entry_from_billing_group(key, records, category):
             "account": consumption_acc,
             "debit_in_account_currency": total_value,
             "credit_in_account_currency": 0,
-            "cost_center": cc_name
+            "cost_center": cc_name,
+            "project": "STOCK CONSUMPTION"
         }
         je_entries.append(debit_entry)
         frappe.logger().info(f"[JE DEBUG] Added Debit Entry: {debit_entry}")

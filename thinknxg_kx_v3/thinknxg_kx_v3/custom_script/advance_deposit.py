@@ -228,13 +228,15 @@ def create_journal_entry(billing_data):
                 "account_currency": paid_to_account_currency,
                 # "party_type": "Customer" if customer else None,
                 # "party": customer,
-                "is_advance": "Yes"
+                "is_advance": "Yes",
+                "project": "UHID Advance"
             })
 
             accounts.append({
                 "account": paid_to_account,
                 "credit_in_account_currency": amount,
-                "account_currency": paid_to_account_currency
+                "account_currency": paid_to_account_currency,
+                "project": "UHID Advance"
             })
 
         else:
@@ -245,7 +247,8 @@ def create_journal_entry(billing_data):
             accounts.append({
                 "account": paid_to_account,
                 "debit_in_account_currency": amount,
-                "account_currency": paid_to_account_currency
+                "account_currency": paid_to_account_currency,
+                "project": "UHID Advance"
             })
 
             accounts.append({
@@ -254,7 +257,8 @@ def create_journal_entry(billing_data):
                 "account_currency": paid_to_account_currency,
                 # "party_type": "Customer" if customer else None,
                 # "party": customer,
-                "is_advance": "Yes"
+                "is_advance": "Yes",
+                "project": "UHID Advance"
             })
 
         journal_entry = frappe.get_doc({

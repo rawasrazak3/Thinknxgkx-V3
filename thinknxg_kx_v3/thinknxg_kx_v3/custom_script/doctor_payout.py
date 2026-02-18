@@ -154,7 +154,8 @@ def create_journal_entry(billing_data):
             "party": employee_id,
 
             "credit_in_account_currency": 0,
-            "debit_in_account_currency": total_amount
+            "debit_in_account_currency": total_amount,
+            "project": "DOCTOR PAYOUT"
         }
         je_entries.append(debit_entry)
         frappe.logger().info(f"[JE DEBUG] Added Credit Entry: {debit_entry}")
@@ -164,7 +165,8 @@ def create_journal_entry(billing_data):
         credit_entry = {
             "account": "Doctor Payout Payable - AN",  # Replace with actual payable account
             "debit_in_account_currency": 0,
-            "credit_in_account_currency": total_amount
+            "credit_in_account_currency": total_amount,
+            "project": "DOCTOR PAYOUT"
         }
         je_entries.append(credit_entry)
         frappe.logger().info(f"[JE DEBUG] Added Debit Entry: {credit_entry}")

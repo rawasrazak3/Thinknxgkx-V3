@@ -783,7 +783,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": credit_account,
             "debit_in_account_currency": 0,
             "credit_in_account_currency": item_rate,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "IP Billing"
         },
     ]
     # Handling Credit Payment Mode
@@ -795,6 +796,7 @@ def create_journal_entry_from_billing(billing_data):
             "party": customer,
             "debit_in_account_currency": authorized_amount,
             "credit_in_account_currency": 0,
+            "project": "IP Billing"
         })
         
 
@@ -807,7 +809,8 @@ def create_journal_entry_from_billing(billing_data):
             je_accounts.append({
                 "account": cash_account,  # Replace with actual cash account
                 "debit_in_account_currency": payment["amount"],
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "IP Billing"
             })
 
     # Handling Advance Payment Mode
@@ -819,6 +822,7 @@ def create_journal_entry_from_billing(billing_data):
                 "credit_in_account_currency": 0,
                 "party_type": "Customer" if payer_type.lower()!="cash" else None,
                 "party": customer if payer_type.lower()!="cash" else None,
+                "project": "IP Billing"
             })
 
     # # Handling Other Payment Modes (UPI, Card, etc.)
@@ -856,6 +860,7 @@ def create_journal_entry_from_billing(billing_data):
             "account": bank_transfer_account,
             "debit_in_account_currency": bank_transfer_total,
             "credit_in_account_currency": 0,
+            "project": "IP Billing"
         })
 
     if other_bank_total > 0:
@@ -863,6 +868,7 @@ def create_journal_entry_from_billing(billing_data):
             "account": bank_account,
             "debit_in_account_currency": other_bank_total,
             "credit_in_account_currency": 0,
+            "project": "IP Billing"
         })
 
 
@@ -874,7 +880,8 @@ def create_journal_entry_from_billing(billing_data):
             "debit_in_account_currency": due_amount,
             "credit_in_account_currency": 0,
             # "reference_type": "Sales Invoice",
-            # "reference_name":sales_invoice_name
+            # "reference_name":sales_invoice_name,
+            "project": "IP Billing"
         })
 
     # Tax line
@@ -885,7 +892,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": vat_account,
             "debit_in_account_currency": 0,
             "credit_in_account_currency": tax_amount,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "IP Billing"
         })
     if total_uepr > 0:
         je_accounts.extend([
@@ -893,13 +901,15 @@ def create_journal_entry_from_billing(billing_data):
                 "account": default_expense_account,
                 "debit_in_account_currency": total_uepr,
                 "credit_in_account_currency": 0,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "IP Billing"
             },
             {
                 "account": default_stock_in_hand,
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": total_uepr,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "IP Billing"
             }
         ])
 
@@ -980,13 +990,15 @@ def create_advance_refund_entry(payment, company, customer, cost_center, patient
                 "account": advance_account,
                 "debit_in_account_currency": payment["amount"],
                 "credit_in_account_currency": 0,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "UHID Advance Refund"
             },
             {
                 "account": refund_account,
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": payment["amount"],
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "UHID Advance Refund"
             }
         ]
 
