@@ -150,7 +150,8 @@ def create_journal_entry(billing_data):
                 # "party_type": "Customer",
                 # "party": customer,
                 "credit_in_account_currency": rec_amount,
-                "debit_in_account_currency": 0
+                "debit_in_account_currency": 0,
+                "project": "DUE SETTLEMENT"
             }
             je_entries.append(credit_entry)
             frappe.logger().info(f"[JE DEBUG] Added Credit Entry to Customer: {credit_entry}")
@@ -162,6 +163,7 @@ def create_journal_entry(billing_data):
                 "credit_in_account_currency": rec_amount,
                 # "party_type": "Customer",
                 # "party": customer,
+                "project": "DUE SETTLEMENT"
             }
             je_entries.append(credit_entry)
             frappe.logger().info(f"[JE DEBUG] Added Credit Entry to Due: {credit_entry}")
@@ -193,7 +195,8 @@ def create_journal_entry(billing_data):
                 "debit_in_account_currency": amount,
                 "credit_in_account_currency": 0,
                 # "party_type": "Customer",
-                # "party": customer    
+                # "party": customer,
+                "project": "DUE SETTLEMENT"
              }
 
             je_entries.append(debit_entry)

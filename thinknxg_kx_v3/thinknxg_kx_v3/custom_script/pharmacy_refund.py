@@ -340,7 +340,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "credit_in_account_currency": 0,
             "cost_center": cost_center,
             "reference_type": "Journal Entry" if reference_invoice else None,
-            "reference_name": reference_invoice
+            "reference_name": reference_invoice,
+            "project": "PHARMACY REFUND"
         },
         # Reverse receivable
         {
@@ -350,6 +351,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "cost_center": debtors_cost_center,
             "party_type": "Customer",
             "party": customer,
+            "project": "PHARMACY REFUND"
         },
     ]
 
@@ -361,7 +363,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "credit_in_account_currency": 0,
             "cost_center": cost_center,
             # "reference_type": "Journal Entry",
-            # "reference_name": reference_invoice
+            # "reference_name": reference_invoice,
+            "project": "PHARMACY REFUND"
         })
 
     # UEPR reversal
@@ -374,6 +377,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "cost_center": cost_center,
                 # "reference_type": "Journal Entry",
                 # "reference_name": reference_invoice,
+                "project": "PHARMACY REFUND"
             },
             {
                 "account": default_expense_account,
@@ -382,6 +386,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "cost_center": cost_center,
                 # "reference_type": "Journal Entry",
                 # "reference_name": reference_invoice,
+                "project": "PHARMACY REFUND"
             }
         ])
 
@@ -398,7 +403,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
-                # "reference_name": reference_invoice
+                # "reference_name": reference_invoice,
+                "project": "PHARMACY REFUND"
             })
         elif mode in ["credit"]:
             je_accounts.append({
@@ -407,6 +413,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "credit_in_account_currency":amount,
                 "party_type": "Customer",
                 "party": customer,
+                "project": "PHARMACY REFUND"
             })
         elif mode in ["upi", "card_payment", "prepaid card"]:
             je_accounts.append({
@@ -414,13 +421,15 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
-                # "reference_name": reference_invoice
+                # "reference_name": reference_invoice,
+                "project": "PHARMACY REFUND"
             })
         elif mode in ["bank transfer", "neft"]:
             je_accounts.append({
                 "account": "0429028333140012 - BANK MUSCAT - AN",
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
+                "project": "PHARMACY REFUND"
             })
         elif mode in ["ip advance", "uhid_advance"]:
             je_accounts.append({
@@ -428,7 +437,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
-                # "reference_name": reference_invoice
+                # "reference_name": reference_invoice,
+                "project": "PHARMACY REFUND"
             })
 
     # --- Create Refund JE ---

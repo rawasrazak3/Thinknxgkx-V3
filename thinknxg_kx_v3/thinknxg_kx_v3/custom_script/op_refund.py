@@ -350,9 +350,10 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "credit_in_account_currency": 0,
             "cost_center": sales_cost_center,
             "reference_type": "Journal Entry" if reference_invoice else None,
-            "reference_name": reference_invoice
+            "reference_name": reference_invoice,
             # "party_type": "Customer",
-            # "party": customer
+            # "party": customer,
+            "project": "OP Refund"
         },
     ]
 
@@ -362,7 +363,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "account": vat_account,
             "debit_in_account_currency": tax_amount,
             "credit_in_account_currency": 0,
-            "cost_center": sales_cost_center
+            "cost_center": sales_cost_center,
+            "project": "OP Refund"
         })
 
     # ---- Insurance / Payer refund (credit receivable) ----
@@ -385,7 +387,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "credit_in_account_currency": payer_refund_amount,
             "party_type": "Customer",
             "party": customer,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "OP Refund"
         }
 
         # ONLY add reference if original billing JE exists
@@ -406,13 +409,15 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "account": default_stock_in_hand,
                 "debit_in_account_currency": total_uepr,
                 "credit_in_account_currency": 0,
-                "cost_center": sales_cost_center
+                "cost_center": sales_cost_center,
+                "project": "OP Refund"
             },
             {
                 "account": default_expense_account,
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": total_uepr,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "OP Refund"
             }
         ])
     
@@ -432,7 +437,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
-                # "reference_name": reference_invoice
+                # "reference_name": reference_invoice,
+                "project": "OP Refund"
             })
         elif mode in ["credit"]:
             je_accounts.append({
@@ -442,7 +448,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "party_type": "Customer",
                 "party": customer,
                 "reference_type": "Journal Entry",
-                "reference_name": reference_invoice
+                "reference_name": reference_invoice,
+                "project": "OP Refund"
             })
         elif mode in ["upi", "card_payment","prepaid card"]:
             je_accounts.append({
@@ -450,14 +457,16 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
-                # "reference_name": reference_invoice
+                # "reference_name": reference_invoice,
+                "project": "OP Refund"
             })
          # BANK
         elif mode in ["bank transfer", "neft"]:
             je_accounts.append({
                 "account": "0429028333140012 - BANK MUSCAT - AN",
                 "debit_in_account_currency": 0,
-                "credit_in_account_currency": amount
+                "credit_in_account_currency": amount,
+                "project": "OP Refund"
             })
         elif mode == "ip advance":
             je_accounts.append({
@@ -465,7 +474,8 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": amount,
                 # "reference_type": "Journal Entry",
-                # "reference_name": reference_invoice
+                # "reference_name": reference_invoice,
+                "project": "OP Refund"
             })
 
         # Only add reference if original billing JE exists

@@ -381,7 +381,8 @@ def create_merged_journal_entry(bill_no, transactions):
             "credit_in_account_currency": total_bill_amount,
             "debit_in_account_currency": 0,
             "reference_type": "Journal Entry",
-            "reference_name": reference_je
+            "reference_name": reference_je,
+            "project": "AR BILL SETTLEMENT"
         })
 
         #  PROCESS EACH TRANSACTION
@@ -411,7 +412,8 @@ def create_merged_journal_entry(bill_no, transactions):
                 je_entries.append({
                     "account": account,
                     "debit_in_account_currency": amount,
-                    "credit_in_account_currency": 0
+                    "credit_in_account_currency": 0,
+                    "project": "AR BILL SETTLEMENT"
                 })
 
         # ADJUSTMENTS
@@ -419,28 +421,32 @@ def create_merged_journal_entry(bill_no, transactions):
             je_entries.append({
                 "account": write_off_account,
                 "debit_in_account_currency": total_write_off,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "AR BILL SETTLEMENT"
             })
 
         if total_processing_fee > 0:
             je_entries.append({
                 "account": "Processing Fee - AN",
                 "debit_in_account_currency": total_processing_fee,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "AR BILL SETTLEMENT"
             })
 
         if total_tds > 0:
             je_entries.append({
                 "account": "TDS - AN",
                 "debit_in_account_currency": total_tds,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "AR BILL SETTLEMENT"
             })
 
         if total_payer_deduct > 0:
             je_entries.append({
                 "account": "Payer Deduction - AN",
                 "debit_in_account_currency": total_payer_deduct,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "AR BILL SETTLEMENT"
             })
 
         # CREATE JE

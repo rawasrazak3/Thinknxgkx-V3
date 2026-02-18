@@ -301,7 +301,8 @@ def create_journal_entry_from_billing(billing_data):
         "party": customer,
         "debit_in_account_currency": billing_data["selling_amount"] + tax_amount,
         "credit_in_account_currency": 0,
-        "cost_center": cost_center
+        "cost_center": cost_center,
+        "project": "IPD ADDENDUM"
     })
 
     # Credit: IPD Income
@@ -311,7 +312,8 @@ def create_journal_entry_from_billing(billing_data):
         "credit_in_account_currency": billing_data["selling_amount"],
         "cost_center": cost_center,
         "party_type": "customer",
-        "party": customer
+        "party": customer,
+        "project": "IPD ADDENDUM"
         
     })
 
@@ -321,7 +323,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": "VAT 5% - AN",
             "debit_in_account_currency": 0,
             "credit_in_account_currency": tax_amount,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "IPD ADDENDUM"
         })
 
 
@@ -450,7 +453,8 @@ def create_journal_entry(reference_name, billing_data):
             "credit_in_account_currency": payer_amount,
             "reference_type": "Journal Entry",
             "reference_name":reference_name,
-            "cost_center":item_cost_center
+            "cost_center":item_cost_center,
+            "project": "IPD ADDENDUM"
         })
     # Handling Credit Payment Mode
     credit_payment = next((p for p in payment_details if p["payment_mode_code"].lower() == "credit"), None)
@@ -461,6 +465,7 @@ def create_journal_entry(reference_name, billing_data):
             "party": customer_name,
             "debit_in_account_currency": authorized_amount,
             "credit_in_account_currency": 0,
+            "project": "IPD ADDENDUM"
         })
         
 
@@ -472,7 +477,8 @@ def create_journal_entry(reference_name, billing_data):
                 "debit_in_account_currency": payment["amount"],
                 "credit_in_account_currency": 0,
                 # "reference_type": "Sales Invoice",
-                # "reference_name":sales_invoice_name
+                # "reference_name":sales_invoice_name,
+                "project": "IPD ADDENDUM"
             })
 
     # # Handling Other Payment Modes (UPI, Card, etc.)
@@ -505,6 +511,7 @@ def create_journal_entry(reference_name, billing_data):
             "account": bank_transfer_account,
             "debit_in_account_currency": bank_transfer_total,
             "credit_in_account_currency": 0,
+            "project": "IPD ADDENDUM"
         })
 
     if other_bank_total > 0:
@@ -512,6 +519,7 @@ def create_journal_entry(reference_name, billing_data):
             "account": bank_account,
             "debit_in_account_currency": other_bank_total,
             "credit_in_account_currency": 0,
+            "project": "IPD ADDENDUM"
         })
 
 
@@ -569,7 +577,8 @@ def create_uepr_journal_entry(reference_name, billing_data):
                 "credit_in_account_currency": 0,
                 # "reference_type": "Sales Invoice",
                 # "reference_name": sales_invoice_name,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "IPD ADDENDUM"
             },
             {
                 "account": "Stock In Hand - AN",
@@ -577,7 +586,8 @@ def create_uepr_journal_entry(reference_name, billing_data):
                 "credit_in_account_currency": total_uepr,
                 # "reference_type": "Sales Invoice",
                 # "reference_name": sales_invoice_name,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "IPD ADDENDUM"
             }
         ],
         "user_remark": f"UEPR value booking for {reference_name}"

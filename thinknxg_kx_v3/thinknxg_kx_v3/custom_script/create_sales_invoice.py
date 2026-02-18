@@ -330,7 +330,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": credit_account,
             "debit_in_account_currency": 0,
             "credit_in_account_currency": item_rate,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "OP Billing"
         },
     ]
     # Handling Credit Payment Mode
@@ -342,6 +343,7 @@ def create_journal_entry_from_billing(billing_data):
             "party": customer,
             "debit_in_account_currency": authorized_amount,
             "credit_in_account_currency": 0,
+            "project": "OP Billing"
         })
         
 
@@ -382,7 +384,8 @@ def create_journal_entry_from_billing(billing_data):
             je_accounts.append({
                 "account": cash_account,
                 "debit_in_account_currency": amount,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "OP Billing"
             })
 
         # UHID / IP ADVANCE
@@ -393,6 +396,7 @@ def create_journal_entry_from_billing(billing_data):
                 "credit_in_account_currency": 0,
                 # "party_type": "Customer",
                 # "party": customer,
+                "project": "OP Billing"
             })
 
         # BANK
@@ -400,14 +404,16 @@ def create_journal_entry_from_billing(billing_data):
             je_accounts.append({
                 "account": "0429028333140012 - BANK MUSCAT - AN",
                 "debit_in_account_currency": amount,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "OP Billing"
             })
 
         elif mode == "prepaid card":
             je_accounts.append({
                 "account": bank_account,
                 "debit_in_account_currency": amount,
-                "credit_in_account_currency": 0
+                "credit_in_account_currency": 0,
+                "project": "OP Billing"
             })
 
 
@@ -419,7 +425,8 @@ def create_journal_entry_from_billing(billing_data):
             "credit_in_account_currency": 0,
             "party_type": "Customer",
             "party": customer,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "OP Billing"
     })
 
 
@@ -431,7 +438,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": vat_account,
             "debit_in_account_currency": 0,
             "credit_in_account_currency": tax_amount,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "OP Billing"
         })
     if total_uepr > 0:
         je_accounts.extend([
@@ -439,13 +447,15 @@ def create_journal_entry_from_billing(billing_data):
                 "account": default_expense_account,
                 "debit_in_account_currency": total_uepr,
                 "credit_in_account_currency": 0,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "OP Billing"
             },
             {
                 "account": default_stock_in_hand,
                 "debit_in_account_currency": 0,
                 "credit_in_account_currency": total_uepr,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "OP Billing"
             }
         ])
 

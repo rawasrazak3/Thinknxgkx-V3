@@ -228,7 +228,8 @@ def create_journal_entry(billing_data):
                 "account": default_inventory,
                 "debit_in_account_currency": total_net_amount-total_tax,
                 "credit_in_account_currency": 0,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "GRN"
             })
 
         # Debit VAT (if applicable)
@@ -237,7 +238,8 @@ def create_journal_entry(billing_data):
                 "account": vat_account,
                 "debit_in_account_currency": total_tax,
                 "credit_in_account_currency": 0,
-                "cost_center": cost_center
+                "cost_center": cost_center,
+                "project": "GRN"
             })
 
         # Credit Payable (total bill amount)
@@ -247,7 +249,8 @@ def create_journal_entry(billing_data):
             "party": supplier,
             "debit_in_account_currency": 0,
             "credit_in_account_currency": total_grn,
-            "cost_center": cost_center
+            "cost_center": cost_center,
+            "project": "GRN"
         })
         #     "accounts": [
         #         {
