@@ -49,7 +49,8 @@ fixtures = [
 
 
 doctype_js = {
-    "Payment Entry": "public/js/payment_entry.js"
+    "Payment Entry": "public/js/payment_entry.js",
+    "Leave Application" : "public/js/leave_application.js",
 }
 
 
