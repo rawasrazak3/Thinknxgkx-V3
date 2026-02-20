@@ -96,7 +96,7 @@ def main():
 
         # Calculate from_date and to_date
         to_date_raw = settings.get("date")
-        t_date = getdate(to_date_raw) if to_date_raw else getdate(add_days(nowdate(), -4))
+        t_date = getdate(to_date_raw) if to_date_raw else getdate(add_days(nowdate(), -2))
         no_of_days = cint(settings.get("no_of_days") or 3)
         f_date = getdate(add_days(t_date, -no_of_days))
 

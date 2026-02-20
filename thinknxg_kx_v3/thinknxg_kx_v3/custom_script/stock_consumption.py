@@ -91,7 +91,7 @@ def main():
         # to_date = 1966962420000    
         # Fetch dynamic date and number of days from settings
         settings = frappe.get_single("Karexpert Settings")
-        # Get to_date from settings or fallback to nowdate() - 4 days
+        # Get to_date from settings or fallback to nowdate() - 2 days
         to_date_raw = settings.get("date")
         if to_date_raw:
             t_date = getdate(to_date_raw)
@@ -114,24 +114,30 @@ def main():
         # Process billing data per facility
         grouped_data = {}
         for record in billing_data.get("jsonResponse", []):
-            transfer_type = record.get("transactionType", "").lower()
-            if transfer_type == "store consumption":
-                key = record.get("transactionId")
-                category = "STORE CONSUMPTION"
-            else:
+            transfer_type = record.get("transactionType", "").strip().upper()
+            # if transfer_type == "store consumption":
+            #     key = record.get("transactionId")
+            #     category = "STORE CONSUMPTION"
+            # else:
+            #     continue
+
+            transaction_id = record.get("transactionId")
+
+            if not transaction_id:
                 continue
 
-            if not key:
-                frappe.log(f"Missing key for record {record.get('id')}")
+            if transfer_type not in ["STORE CONSUMPTION", "STORE CONSUMPTION CANCEL"]:
                 continue
+
+            key = f"{transaction_id}_{transfer_type}"
 
             if key not in grouped_data:
-                grouped_data[key] = {"records": [], "category": category}
+                grouped_data[key] = {"records": [], "category": transfer_type, "transaction_id": transaction_id}
             grouped_data[key]["records"].append(record)
 
         for key, data in grouped_data.items():
             create_journal_entry_from_billing_group(key, data["records"], data["category"])
-
+            
     except Exception as e:
         frappe.log_error(f"Error: {e}")
 
@@ -190,6 +196,13 @@ def create_journal_entry_from_billing_group(key, records, category):
         frappe.logger().info(f"[JE DEBUG] Formatted Posting Date: {formatted_date}")
         # frappe.msgprint(f"[DEBUG] Posting Date: {formatted_date}")
 
+        if category == "STORE CONSUMPTION":
+            custom_category = "STOCK CONSUMPTION"
+        elif category == "STORE CONSUMPTION CANCEL":
+            custom_category = "STORE CONSUMPTION CANCEL"
+        else:
+            custom_category = category
+
         # Initialize JE entries
         je_entries = []
         #Duplicate check: same Employee, Date, and Amount
@@ -197,33 +210,68 @@ def create_journal_entry_from_billing_group(key, records, category):
             "Journal Entry",
             {
                 "docstatus": 1,  # submitted
-                "custom_bill_number": bill_no
+                "custom_bill_number": bill_no,
+                "custom_bill_category": custom_category
             }
         )
         if existing_je:
             frappe.logger().info(f"[JE DEBUG] Duplicate found, skipping JE creation. Existing JE: {existing_je}")
             return f"Skipped: Journal Entry {existing_je} already exists"
         #Credit the payer (customer)
-        credit_entry = {
-            "account": stock_acc,  
-            "credit_in_account_currency": total_value,
-            "debit_in_account_currency": 0,
-            "cost_center": cc_name,
-            "project": "STOCK CONSUMPTION"
-        }
+        # credit_entry = {
+        #     "account": stock_acc,  
+        #     "credit_in_account_currency": total_value,
+        #     "debit_in_account_currency": 0,
+        #     "cost_center": cc_name,
+        #     "project": "STOCK CONSUMPTION"
+        # }
+        # je_entries.append(credit_entry)
+        # frappe.logger().info(f"[JE DEBUG] Added Credit Entry: {credit_entry}")
+        # # frappe.msgprint(f"[DEBUG] Credit Entry: {credit_entry}")
+        # debit_entry = {
+        #     "account": consumption_acc,
+        #     "debit_in_account_currency": total_value,
+        #     "credit_in_account_currency": 0,
+        #     "cost_center": cc_name,
+        #     "project": "STOCK CONSUMPTION"
+        # }
+        # je_entries.append(debit_entry)
+        # frappe.logger().info(f"[JE DEBUG] Added Debit Entry: {debit_entry}")
+
+        if category == "STORE CONSUMPTION":
+            # Original Entry
+            credit_entry = {
+                "account": stock_acc,
+                "credit_in_account_currency": total_value,
+                "debit_in_account_currency": 0,
+                "project": custom_category
+            }
+
+            debit_entry = {
+                "account": consumption_acc,
+                "debit_in_account_currency": total_value,
+                "credit_in_account_currency": 0,
+                "project": custom_category
+            }
+
+        elif category == "STORE CONSUMPTION CANCEL":
+            # Reverse Entry
+            credit_entry = {
+                "account": consumption_acc,
+                "credit_in_account_currency": total_value,
+                "debit_in_account_currency": 0,
+                "project": custom_category
+            }
+
+            debit_entry = {
+                "account": stock_acc,
+                "debit_in_account_currency": total_value,
+                "credit_in_account_currency": 0,
+                "project": custom_category
+            }
+
         je_entries.append(credit_entry)
-        frappe.logger().info(f"[JE DEBUG] Added Credit Entry: {credit_entry}")
-        # frappe.msgprint(f"[DEBUG] Credit Entry: {credit_entry}")
-        debit_entry = {
-            "account": consumption_acc,
-            "debit_in_account_currency": total_value,
-            "credit_in_account_currency": 0,
-            "cost_center": cc_name,
-            "project": "STOCK CONSUMPTION"
-        }
         je_entries.append(debit_entry)
-        frappe.logger().info(f"[JE DEBUG] Added Debit Entry: {debit_entry}")
-        
 
         frappe.logger().info(f"[JE DEBUG] Final JE Entries: {je_entries}")
         # frappe.msgprint(f"[DEBUG] Final JE Entries: {je_entries}")
@@ -238,7 +286,7 @@ def create_journal_entry_from_billing_group(key, records, category):
             "custom_bill_number":bill_no,
             "accounts": je_entries,
             "user_remark": f" Stock Consumption for Bill No: {bill_no}",
-            "custom_bill_category": "STOCK CONSUMPTION"
+            "custom_bill_category": custom_category
         })
         je_doc.insert(ignore_permissions=True)
         frappe.db.commit()

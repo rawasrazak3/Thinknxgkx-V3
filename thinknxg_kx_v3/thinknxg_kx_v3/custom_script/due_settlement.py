@@ -52,7 +52,7 @@ def main():
         # Fetch dynamic date and number of days from settings
         settings = frappe.get_single("Karexpert Settings")
 
-        # Get to_date from settings or fallback to nowdate() - 4 days
+        # Get to_date from settings or fallback to nowdate() - 2 days
         to_date_raw = settings.get("date")
         if to_date_raw:
             t_date = getdate(to_date_raw)
