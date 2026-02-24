@@ -257,6 +257,7 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
     tax_amount = refund_data.get("tax", 0)
     authorized_amount = refund_data.get("authorized_amount", 0)
     discount_amount = refund_data.get("selling_amount", 0) - refund_data.get("taxable_amount", 0)
+    payer_refund_amount = refund_data.get("payer_refund_amount", 0) or 0
 
     # --- Fetch accounts dynamically from Company ---
     company = frappe.defaults.get_user_default("Company")
@@ -343,16 +344,16 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "reference_name": reference_invoice,
             "project": "PHARMACY REFUND"
         },
-        # Reverse receivable
-        {
-            "account": debit_account,    # Debtors
-            "debit_in_account_currency": 0,
-            "credit_in_account_currency": item_rate,
-            "cost_center": debtors_cost_center,
-            "party_type": "Customer",
-            "party": customer,
-            "project": "PHARMACY REFUND"
-        },
+        # # Reverse receivable
+        # {
+        #     "account": debit_account,    # Debtors
+        #     "debit_in_account_currency": 0,
+        #     "credit_in_account_currency": item_rate,
+        #     "cost_center": debtors_cost_center,
+        #     "party_type": "Customer",
+        #     "party": customer,
+        #     "project": "PHARMACY REFUND"
+        # },
     ]
 
     # Tax reversal
@@ -367,6 +368,26 @@ def create_journal_entry_from_pharmacy_refund(refund_data):
             "project": "PHARMACY REFUND"
         })
 
+
+    if payer_refund_amount > 0:
+        debtor_row = {
+            "account": debit_account,  # Debtors - AN
+            "debit_in_account_currency": 0,
+            "credit_in_account_currency": payer_refund_amount,
+            "party_type": "Customer",
+            "party": customer,
+            "cost_center": cost_center,
+            "project": "OP Refund"
+        }
+
+        # ONLY add reference if original billing JE exists
+        if original_jv:
+            debtor_row.update({
+                "reference_type": "Journal Entry",
+                "reference_name": reference_invoice
+            })
+
+        je_accounts.append(debtor_row)
     # UEPR reversal
     if total_uepr > 0:
         je_accounts.extend([
