@@ -219,7 +219,7 @@ def create_journal_entry_from_billing(billing_data):
     # Check if JE already exists
     existing_je_name = frappe.db.get_value(
         "Journal Entry", 
-        {"custom_bill_number": bill_no, "docstatus": 1}, 
+        {"custom_bill_number": bill_no, "docstatus": 1, "custom_bill_category": "PHARMACY"}, 
         ["name", "custom_modification_time"],
         as_dict=True
     )
