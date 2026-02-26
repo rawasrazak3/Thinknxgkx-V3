@@ -1,13 +1,3 @@
-# Copyright (c) 2026, thinknxg and contributors
-# For license information, please see license.txt
-
-# import frappe
-
-
-# def execute(filters=None):
-# 	columns, data = [], []
-# 	return columns, data
-
 
 from datetime import timedelta
 
@@ -828,6 +818,45 @@ def get_off_shift_in_out(employee, attendance_date):
 
 
 # calculate first shift end and second shift 
+# def update_first_second_shift(entry):
+#     if not entry.break_start or not entry.break_end:
+#         return
+
+#     break_start = timedelta_to_time(entry.break_start)
+#     break_end = timedelta_to_time(entry.break_end)
+
+#     checkins = get_employee_checkins(entry.employee, entry.attendance_date)
+#     if not checkins:
+#         return
+
+#     first_shift_end = None
+#     second_shift_start = None
+
+#     for c in checkins:
+#         t = c.time.time()
+
+#         if t <= break_start:
+#             first_shift_end = t
+
+#         if t >= break_end and not second_shift_start:
+#             second_shift_start = t
+
+#     entry.first_shift_end = first_shift_end
+#     entry.second_shift_start = second_shift_start
+from datetime import datetime
+
+def get_closest_time(target_time, time_list):
+    if not time_list:
+        return None
+
+    return min(
+        time_list,
+        key=lambda t: abs(
+            datetime.combine(datetime.today(), t) -
+            datetime.combine(datetime.today(), target_time)
+        )
+    )
+    
 def update_first_second_shift(entry):
     if not entry.break_start or not entry.break_end:
         return
@@ -839,20 +868,15 @@ def update_first_second_shift(entry):
     if not checkins:
         return
 
-    first_shift_end = None
-    second_shift_start = None
+    checkins = sorted(checkins, key=lambda x: x.time)
+    checkin_times = [c.time.time() for c in checkins]
 
-    for c in checkins:
-        t = c.time.time()
+    # IN / OUT
+    entry.in_time = checkin_times[0]
+    entry.out_time = checkin_times[-1]
 
-        if t <= break_start:
-            first_shift_end = t
-
-        if t >= break_end and not second_shift_start:
-            second_shift_start = t
-
-    entry.first_shift_end = first_shift_end
-    entry.second_shift_start = second_shift_start
+    entry.first_shift_end = get_closest_time(break_start, checkin_times)
+    entry.second_shift_start = get_closest_time(break_end, checkin_times)
 
 
 # calculate first shift early exit and second shift late entry
