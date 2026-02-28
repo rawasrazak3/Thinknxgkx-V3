@@ -1,5 +1,4 @@
 
-from datetime import timedelta
 
 import frappe
 from frappe import _
@@ -630,25 +629,6 @@ def get_query(filters):
     return query
 
 
-# def update_data(data, filters):
-#     for d in data:
-#         if not d.get("shift"):
-#             continue
-
-#         update_late_entry(d, filters.consider_grace_period)
-#         update_early_exit(d, filters.consider_grace_period)
-
-#         update_first_second_shift(d)    #first and second shift calculation
-#         update_first_second_shift_variances(d)   #first shift early exit and second shift late entry calculation
-
-#         d.working_hours = format_float_precision(d.working_hours)
-#         d.in_time, d.out_time = format_in_out_time(d.in_time, d.out_time, d.attendance_date)
-#         d.shift_start, d.shift_end = convert_datetime_to_time_for_same_date(d.shift_start, d.shift_end)
-#         d.shift_actual_start, d.shift_actual_end = convert_datetime_to_time_for_same_date(
-#             d.shift_actual_start, d.shift_actual_end
-#         )
-#     return data
-
 def update_data(data, filters):
     for d in data:
 
@@ -672,27 +652,6 @@ def update_data(data, filters):
         d.in_time, d.out_time = format_in_out_time(d.in_time, d.out_time, d.attendance_date)
 
         # --- Handle Off Shift IN/OUT ---
-        # if not d.get("shift") or d.status in ("OS", "OS/OD"):
-        #     in_time, out_time = get_off_shift_in_out(d.employee, d.attendance_date)
-
-        #     # Extract only the time part
-        #     if in_time:
-        #         in_time = in_time.time() if isinstance(in_time, datetime) else in_time
-        #     if out_time:
-        #         out_time = out_time.time() if isinstance(out_time, datetime) else out_time
-
-        #     d.in_time = in_time
-        #     d.out_time = out_time
-        #     # Calculate working hours
-        #     if in_time and out_time:
-        #         # Convert to datetime on the same date for subtraction
-        #         start_dt = datetime.combine(d.attendance_date, in_time)
-        #         end_dt = datetime.combine(d.attendance_date, out_time)
-        #         d.working_hours = format_duration((end_dt - start_dt).total_seconds())
-        #     else:
-        #         d.working_hours = 0
-        
-
         if not d.get("shift") or d.status in ("OS", "OS/OD"):
             in_time, out_time = get_off_shift_in_out(d.employee, d.attendance_date)
 
@@ -817,92 +776,87 @@ def get_off_shift_in_out(employee, attendance_date):
     return in_time, out_time
 
 
-# calculate first shift end and second shift 
-# def update_first_second_shift(entry):
-#     if not entry.break_start or not entry.break_end:
-#         return
-
-#     break_start = timedelta_to_time(entry.break_start)
-#     break_end = timedelta_to_time(entry.break_end)
-
-#     checkins = get_employee_checkins(entry.employee, entry.attendance_date)
-#     if not checkins:
-#         return
-
-#     first_shift_end = None
-#     second_shift_start = None
-
-#     for c in checkins:
-#         t = c.time.time()
-
-#         if t <= break_start:
-#             first_shift_end = t
-
-#         if t >= break_end and not second_shift_start:
-#             second_shift_start = t
-
-#     entry.first_shift_end = first_shift_end
-#     entry.second_shift_start = second_shift_start
-from datetime import datetime
-
-def get_closest_time(target_time, time_list):
-    if not time_list:
-        return None
-
-    return min(
-        time_list,
-        key=lambda t: abs(
-            datetime.combine(datetime.today(), t) -
-            datetime.combine(datetime.today(), target_time)
-        )
-    )
-    
 def update_first_second_shift(entry):
+
+    # Reset values
+    entry.first_shift_end = None
+    entry.second_shift_start = None
+
     if not entry.break_start or not entry.break_end:
         return
-
-    break_start = timedelta_to_time(entry.break_start)
-    break_end = timedelta_to_time(entry.break_end)
 
     checkins = get_employee_checkins(entry.employee, entry.attendance_date)
-    if not checkins:
+
+    # If only IN and OUT → do nothing
+    if not checkins or len(checkins) <= 2:
         return
 
-    checkins = sorted(checkins, key=lambda x: x.time)
-    checkin_times = [c.time.time() for c in checkins]
-
-    # IN / OUT
-    entry.in_time = checkin_times[0]
-    entry.out_time = checkin_times[-1]
-
-    entry.first_shift_end = get_closest_time(break_start, checkin_times)
-    entry.second_shift_start = get_closest_time(break_end, checkin_times)
-
-
-# calculate first shift early exit and second shift late entry
-def update_first_second_shift_variances(entry):
-    # Safety checks
-    if not entry.break_start or not entry.break_end:
-        return
-
-    # Convert timedelta → time
     break_start = timedelta_to_time(entry.break_start)
     break_end   = timedelta_to_time(entry.break_end)
 
+    # Convert to time list
+    checkin_times = [c.time.time() for c in checkins]
+
+    # Remove first (IN) and last (OUT)
+    middle_times = checkin_times[1:-1]
+
+    if not middle_times:
+        return
+
+    # Helper to calculate nearest time
+    def nearest_time(target_time, time_list):
+        return min(
+            time_list,
+            key=lambda t: abs(
+                datetime.combine(entry.attendance_date, t) -
+                datetime.combine(entry.attendance_date, target_time)
+            )
+        )
+
+    # First Shift End → nearest to break_start
+    entry.first_shift_end = nearest_time(break_start, middle_times)
+
+    # Second Shift Start → nearest to break_end
+    entry.second_shift_start = nearest_time(break_end, middle_times)
+
+
+def update_first_second_shift_variances(entry):
+
+    # Reset values first (important to avoid old data)
+    entry.first_shift_early_exit = None
+    entry.second_shift_late_entry = None
+
+    if not entry.break_start or not entry.break_end:
+        return
+
+    # If shift split not calculated, skip
     if not entry.first_shift_end or not entry.second_shift_start:
         return
 
-    # ---- First Shift Early Exit ----
-    if entry.first_shift_end < break_start:
-        diff = datetime.combine(entry.attendance_date, break_start) - \
-               datetime.combine(entry.attendance_date, entry.first_shift_end)
-        entry.first_shift_early_exit = format_duration(diff.total_seconds())
+    break_start = timedelta_to_time(entry.break_start)
+    break_end   = timedelta_to_time(entry.break_end)
 
-    # ---- Second Shift Late Entry ----
-    if entry.second_shift_start > break_end:
-        diff = datetime.combine(entry.attendance_date, entry.second_shift_start) - \
-               datetime.combine(entry.attendance_date, break_end)
-        entry.second_shift_late_entry = format_duration(diff.total_seconds())
+    # Convert all to datetime for accurate comparison
+    break_start_dt = datetime.combine(entry.attendance_date, break_start)
+    break_end_dt   = datetime.combine(entry.attendance_date, break_end)
 
+    first_shift_end_dt = datetime.combine(entry.attendance_date, entry.first_shift_end)
+    second_shift_start_dt = datetime.combine(entry.attendance_date, entry.second_shift_start)
+
+    # -------------------------------------------------
+    # First Shift Early Exit
+    # Only if employee left BEFORE break_start
+    # -------------------------------------------------
+    if first_shift_end_dt < break_start_dt:
+        diff_seconds = (break_start_dt - first_shift_end_dt).total_seconds()
+        entry.first_shift_early_exit = format_duration(diff_seconds)
+
+    # -------------------------------------------------
+    # Second Shift Late Entry
+    # Only if employee returned AFTER break_end
+    # -------------------------------------------------
+    if second_shift_start_dt > break_end_dt:
+        diff_seconds = (second_shift_start_dt - break_end_dt).total_seconds()
+        entry.second_shift_late_entry = format_duration(diff_seconds)
 
 
