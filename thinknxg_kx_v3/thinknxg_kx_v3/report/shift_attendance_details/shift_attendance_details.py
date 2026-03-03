@@ -1,5 +1,4 @@
 
-
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, format_duration
@@ -12,6 +11,7 @@ STATUS_MAP = {
     "Absent": "A",
     "Half Day/Other Half Absent": "HD/A",
     "Half Day/Other Half Present": "HD/P",
+    "Half Day": "HD",
     "Work From Home": "WFH",
     "On Leave": "L",
     "Holiday": "H",
@@ -36,15 +36,42 @@ def get_all_dates(from_date, to_date):
     return dates
 
 
-def is_holiday(date, company):
-    holiday_list = frappe.db.get_value("Company", company, "default_holiday_list")
-    if not holiday_list:
-        return False
+# def is_holiday(date, company):
+#     holiday_list = frappe.db.get_value("Company", company, "default_holiday_list")
+#     if not holiday_list:
+#         return False
 
-    return frappe.db.exists(
-        "Holiday",
-        {"parent": holiday_list, "holiday_date": date}
+#     return frappe.db.exists(
+#         "Holiday",
+#         {"parent": holiday_list, "holiday_date": date}
+#     )
+
+def is_holiday(date, employee, company):
+
+    # Check Employee Holiday List
+    emp_holiday_list = frappe.db.get_value(
+        "Employee", employee, "holiday_list"
     )
+
+    if emp_holiday_list and frappe.db.exists(
+        "Holiday",
+        {"parent": emp_holiday_list, "holiday_date": date},
+    ):
+        return True
+
+    # Fallback to Company Holiday List
+    company_holiday_list = frappe.db.get_value(
+        "Company", company, "default_holiday_list"
+    )
+
+    if company_holiday_list and frappe.db.exists(
+        "Holiday",
+        {"parent": company_holiday_list, "holiday_date": date},
+    ):
+        return True
+
+    return False
+
 
 def is_weekly_off(date, employee):
     shift = frappe.db.get_value(
@@ -247,7 +274,8 @@ def resolve_final_status(entry, date, employee, company):
     """
 
     # Base flags
-    is_hol = is_holiday(date, company)
+    # is_hol = is_holiday(date, company)
+    is_hol = is_holiday(date, employee, company)
     is_wo = is_weekly_off(date, employee)
 
     has_shift = frappe.db.exists(
@@ -284,7 +312,15 @@ def resolve_final_status(entry, date, employee, company):
 
 
     # Holiday / Weekly Off
-    else:
+    # else:
+    #     if is_hol:
+    #         full_status = "Holiday"
+    #     elif is_wo:
+    #         full_status = "Weekly Off"
+
+    # Apply holiday only if no attendance status
+
+    if not entry.status:
         if is_hol:
             full_status = "Holiday"
         elif is_wo:
@@ -292,14 +328,23 @@ def resolve_final_status(entry, date, employee, company):
 
     
     # Off Shift 
+    # checkin_exists = has_checkin(employee, date)
+
+    # if checkin_exists and not entry.shift:
+    #     if full_status in ("On Duty", "Holiday On Duty", "Weekly Off On Duty"):
+    #         full_status = "Off Shift On Duty"
+    #     else:
+    #         full_status = "Off Shift"
+
+
+    # Off Shift (only when no attendance)
     checkin_exists = has_checkin(employee, date)
 
-    if checkin_exists and not entry.shift:
+    if not entry.status and checkin_exists and not entry.shift:
         if full_status in ("On Duty", "Holiday On Duty", "Weekly Off On Duty"):
             full_status = "Off Shift On Duty"
         else:
             full_status = "Off Shift"
-
 
     return STATUS_MAP.get(full_status, "")
 
@@ -478,11 +523,11 @@ def get_attendance_status_for_detailed_view(employee: str, filters, employee_att
             if status == "Half Day":
                 half_day_status = status_entry.get("half_day_status") if isinstance(status_entry, dict) else None
                 if half_day_status == "Present":
-                    status = "HD/P"
+                    status = "Half Day/Other Half Present"
                 elif half_day_status == "Absent":
-                    status = "HD/A"
+                    status = "Half Day/Other Half Absent"
                 else:
-                    status = "HD"
+                    status = "Half Day"
 
             # ---- On Duty / Off Shift ----
             elif status == "On Duty":
@@ -495,7 +540,12 @@ def get_attendance_status_for_detailed_view(employee: str, filters, employee_att
                 status = "H" if d in holidays else ""
 
             # ---- Map to abbreviation for display ----
-            abbr = STATUS_MAP.get(status, "")
+            # abbr = STATUS_MAP.get(status, "")
+            if status in STATUS_MAP.values():
+                abbr = status
+            else:
+                abbr = STATUS_MAP.get(status, "")
+
             row[d.strftime("%d-%m-%Y")] = abbr
 
         attendance_values.append(row)
@@ -504,7 +554,7 @@ def get_attendance_status_for_detailed_view(employee: str, filters, employee_att
 
 
 def get_report_summary(data):
-    present_records = half_day_records = absent_records = leave_records = od_records = os_records = 0
+    present_records = half_day_records = absent_records = leave_records = od_records = os_records = wfh_records = 0
     late_entries = early_exits = 0
 
     for entry in data:
@@ -524,7 +574,7 @@ def get_report_summary(data):
         elif st == "OD":
             od_records += 1
         elif st == "WFH":
-            od_records += 1
+            wfh_records += 1
         elif st == "OS":
             os_records += 1
 
@@ -539,7 +589,7 @@ def get_report_summary(data):
         {"value": absent_records, "label": _("Absent"), "datatype": "Int", "indicator": "Red"},
         {"value": leave_records, "label": _("Leave"), "datatype": "Int", "indicator": "Orange"},
         {"value": od_records, "label": _("On Duty"), "datatype": "Int", "indicator": "#3187D8"},
-        {"value": od_records, "label": _("Work From Home"), "datatype": "Int", "indicator": "#3187D8"},
+        {"value": wfh_records, "label": _("Work From Home"), "datatype": "Int", "indicator": "#3187D8"},
         {"value": os_records, "label": _("Off Shift"), "datatype": "Int", "indicator": "#914EE3"},
         {"value": late_entries, "label": _("Late Entries"), "datatype": "Int", "indicator": "Red"},
         {"value": early_exits, "label": _("Early Exits"), "datatype": "Int", "indicator": "Red"},
