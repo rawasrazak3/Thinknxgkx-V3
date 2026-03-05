@@ -312,6 +312,11 @@ def get_data(filters, first_day, last_day):
     total_days = (last_day - first_day).days + 1
     employee_map = {}
 
+    # Create Leave Map (Optimized)
+    leave_map = {}
+    for leave in leaves:
+        leave_map.setdefault(leave.employee, []).append(leave)
+
     # Initialize all employees
     for emp in employee_list:
         emp_display = f"{emp.employee_name} ({emp.name})"
@@ -329,11 +334,16 @@ def get_data(filters, first_day, last_day):
                     employee_map[emp_display][fieldname] = f"<span style='color:purple;'>{holiday_map[date_obj].description}</span>"
 
             # Leave
+            # elif any(
+            #     leave.employee == emp.name and
+            #     leave.from_date <= date_obj <= leave.to_date
+            #     for leave in leaves
+            # ):
             elif any(
-                leave.employee == emp.name and
-                leave.from_date <= date_obj <= leave.to_date
-                for leave in leaves
-            ):
+                    leave.from_date <= date_obj <= leave.to_date
+                    for leave in leave_map.get(emp.name, [])
+                ):
+                
                 employee_map[emp_display][fieldname] = "<span style='color:green; font-weight:bold;'>L</span>"
 
             # Default NA
