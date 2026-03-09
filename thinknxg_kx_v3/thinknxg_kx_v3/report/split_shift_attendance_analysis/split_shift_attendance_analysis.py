@@ -319,12 +319,90 @@ def get_attendance_without_checkins(filters):
     return query.run(as_dict=True)
 
 
+# def update_data(data, filters):
+#     for d in data:
+
+#         # -------------------------------------------------
+#         # SHIFT-BASED CALCULATIONS
+#         # -------------------------------------------------
+#         if d.get("shift") and d.get("shift_start") and d.get("shift_end"):
+
+#             update_late_entry(d, filters.consider_grace_period)
+#             update_early_exit(d, filters.consider_grace_period)
+
+#             update_first_second_shift(d)
+#             update_first_second_shift_variances(d)
+
+#             d.shift_start, d.shift_end = convert_datetime_to_time_for_same_date(
+#                 d.shift_start, d.shift_end
+#             )
+
+#             d.shift_actual_start, d.shift_actual_end = convert_datetime_to_time_for_same_date(
+#                 d.shift_actual_start, d.shift_actual_end
+#             )
+
+#         # -------------------------------------------------
+#         # FORMAT IN/OUT TIMES
+#         # -------------------------------------------------
+#         d.in_time, d.out_time = format_in_out_time(
+#             d.in_time, d.out_time, d.attendance_date
+#         )
+
+#         # -------------------------------------------------
+#         # OFF SHIFT – Fetch IN/OUT if needed
+#         # -------------------------------------------------
+#         if not d.get("shift") or d.status in ("OS", "OS/OD"):
+#             in_time, out_time = get_off_shift_in_out(
+#                 d.employee, d.attendance_date
+#             )
+
+#             d.in_time = in_time.time() if in_time else None
+#             d.out_time = out_time.time() if out_time else None
+
+#         # -------------------------------------------------
+#         # GLOBAL WORKING HOURS CALCULATION
+#         # (IN - OUT) - BREAK
+#         # -------------------------------------------------
+#         if d.get("in_time") and d.get("out_time"):
+
+#             in_time_val = d.in_time
+#             out_time_val = d.out_time
+
+#             in_dt = datetime.combine(d.attendance_date, in_time_val)
+#             out_dt = datetime.combine(d.attendance_date, out_time_val)
+
+#             total_seconds = (out_dt - in_dt).total_seconds()
+
+#             # Subtract break duration
+#             if d.get("first_shift_end") and d.get("second_shift_start"):
+
+#                 first_end_dt = datetime.combine(
+#                     d.attendance_date, d.first_shift_end
+#                 )
+#                 second_start_dt = datetime.combine(
+#                     d.attendance_date, d.second_shift_start
+#                 )
+
+#                 break_seconds = (
+#                     second_start_dt - first_end_dt
+#                 ).total_seconds()
+
+#                 if break_seconds > 0:
+#                     total_seconds -= break_seconds
+
+#             # Prevent negative values
+#             if total_seconds < 0:
+#                 total_seconds = 0
+
+#             d.working_hours = format_duration(total_seconds)
+#         else:
+#             d.working_hours = None
+
+#     return data
+
 def update_data(data, filters):
     for d in data:
 
-        # -------------------------------------------------
-        # SHIFT-BASED CALCULATIONS
-        # -------------------------------------------------
         if d.get("shift") and d.get("shift_start") and d.get("shift_end"):
 
             update_late_entry(d, filters.consider_grace_period)
@@ -341,62 +419,12 @@ def update_data(data, filters):
                 d.shift_actual_start, d.shift_actual_end
             )
 
-        # -------------------------------------------------
-        # FORMAT IN/OUT TIMES
-        # -------------------------------------------------
         d.in_time, d.out_time = format_in_out_time(
             d.in_time, d.out_time, d.attendance_date
         )
 
-        # -------------------------------------------------
-        # OFF SHIFT – Fetch IN/OUT if needed
-        # -------------------------------------------------
-        if not d.get("shift") or d.status in ("OS", "OS/OD"):
-            in_time, out_time = get_off_shift_in_out(
-                d.employee, d.attendance_date
-            )
-
-            d.in_time = in_time.time() if in_time else None
-            d.out_time = out_time.time() if out_time else None
-
-        # -------------------------------------------------
-        # GLOBAL WORKING HOURS CALCULATION
-        # (IN - OUT) - BREAK
-        # -------------------------------------------------
-        if d.get("in_time") and d.get("out_time"):
-
-            in_time_val = d.in_time
-            out_time_val = d.out_time
-
-            in_dt = datetime.combine(d.attendance_date, in_time_val)
-            out_dt = datetime.combine(d.attendance_date, out_time_val)
-
-            total_seconds = (out_dt - in_dt).total_seconds()
-
-            # Subtract break duration
-            if d.get("first_shift_end") and d.get("second_shift_start"):
-
-                first_end_dt = datetime.combine(
-                    d.attendance_date, d.first_shift_end
-                )
-                second_start_dt = datetime.combine(
-                    d.attendance_date, d.second_shift_start
-                )
-
-                break_seconds = (
-                    second_start_dt - first_end_dt
-                ).total_seconds()
-
-                if break_seconds > 0:
-                    total_seconds -= break_seconds
-
-            # Prevent negative values
-            if total_seconds < 0:
-                total_seconds = 0
-
-            d.working_hours = format_duration(total_seconds)
-        else:
-            d.working_hours = None
+        # SAME AS STANDARD ERPNext
+        d.working_hours = format_float_precision(d.working_hours)
 
     return data
 
