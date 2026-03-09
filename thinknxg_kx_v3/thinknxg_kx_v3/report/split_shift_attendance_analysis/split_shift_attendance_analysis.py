@@ -416,17 +416,31 @@ def format_in_out_time(in_time, out_time, attendance_date):
     return in_time, out_time
 
 
+# def convert_datetime_to_time_for_same_date(start, end):
+
+#     if not start or not end:
+#         return start, end
+
+#     if hasattr(start, "date") and hasattr(end, "date") and start.date() == end.date():
+#         start = start.time()
+#         end = end.time()
+#     else:
+#         start = format_datetime(start) if start else None
+#         end = format_datetime(end) if end else None
+
+#     return start, end
+
 def convert_datetime_to_time_for_same_date(start, end):
 
     if not start or not end:
         return start, end
 
-    if hasattr(start, "date") and hasattr(end, "date") and start.date() == end.date():
+    # convert datetime → time
+    if hasattr(start, "time"):
         start = start.time()
+
+    if hasattr(end, "time"):
         end = end.time()
-    else:
-        start = format_datetime(start) if start else None
-        end = format_datetime(end) if end else None
 
     return start, end
 
