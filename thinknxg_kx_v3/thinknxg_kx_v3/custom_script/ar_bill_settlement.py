@@ -46,7 +46,7 @@ def get_or_create_customer(customer_name, payer_type=None):
         customer_group = "Cash"  # default if payer_type is None
 
      # Check if the customer already exists
-    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name , "customer_group":customer_group})
+    existing_customer = frappe.db.exists("Customer", {"customer_name": customer_name})
     if existing_customer:
         return existing_customer
     
