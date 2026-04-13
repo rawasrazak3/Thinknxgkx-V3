@@ -114,6 +114,8 @@ def main():
         for txn_id, transactions in txn_map.items():
             create_merged_journal_entry(txn_id, transactions)
 
+        frappe.msgprint("AR Bill created successfully")
+
     except Exception as e:
         frappe.log_error(f"Main Error: {e}")
 
@@ -133,119 +135,45 @@ def create_merged_journal_entry(txn_id, transactions):
         company_doc = frappe.get_doc("Company", company)
 
         receivable_account = company_doc.default_receivable_account
-        write_off_account = company_doc.write_off_account
 
         settlement_date = first.get("settlement_date")
         posting_date = datetime.fromtimestamp(settlement_date / 1000).date() if settlement_date else nowdate()
 
         total_received_amount = 0
-        total_write_off = 0
-        total_processing_fee = 0
-        total_tds = 0
-        total_payer_deduct = 0
-        total_remaining_due = 0
-        bill_nos = []
-        receipt_nos = []
+        total_authorized_amount = 0
 
-        je_entries = []
-
-        # -------------------- ROW-WISE AUTHORIZATION (NO SUM) --------------------
+        # -------------------- PROCESS --------------------
         for txn in transactions:
             ar = txn.get("ar_transaction_detail", {})
 
-            bill_no = ar.get("bill_no")
-            receipt_no = ar.get("receipt_no")
+            # # SUM AUTHORIZATION
+            # for auth in ar.get("payer_authorization", []):
+            #     total_authorized_amount += auth.get("authorization_amount", 0)
 
-            if bill_no:
-                bill_nos.append(bill_no)
-
-            if receipt_no:
-                receipt_nos.append(receipt_no)
-
-            # Fetch original JE
-            journal = frappe.get_all(
-                "Journal Entry",
-                filters={"custom_bill_number": bill_no},
-                fields=["name"],
-                limit=1
-            )
-
-            if not journal:
-                frappe.logger().warning(f"No JE found for bill {bill_no}")
-                continue
-
-            journal_name = journal[0]["name"]
-
-            # Authorization (ROW-WISE)
-            for auth in ar.get("payer_authorization", []):
-                authorization_amount = auth.get("authorization_amount", 0)
-
-                if authorization_amount <= 0:
-                    continue
-
-                je_entries.append({
-                    "account": receivable_account,
-                    "party_type": "Customer",
-                    "party": customer,
-                    "credit_in_account_currency": authorization_amount,
-                    "reference_type": "Journal Entry",
-                    "reference_name": journal_name,   
-                    "project": "AR BILL SETTLEMENT",
-                    "user_remark": f"Bill: {bill_no} ; Receipt: {receipt_no}"
-                })
-
-            # Other totals
-            total_write_off += ar.get("write_off") or 0
-            total_processing_fee += ar.get("processing_fee") or 0
-            total_tds += ar.get("tds") or 0
-            total_payer_deduct += ar.get("payer_deduct_amount") or 0
-            total_remaining_due += ar.get("remaining_due_amount") or 0
-
+            # SUM RECEIVED
             for pay in ar.get("payment_detail", []):
                 total_received_amount += pay.get("received_amount", 0)
 
-        # -------------------- DEBIT ENTRIES --------------------
+        je_entries = []
+        
+        # -------------------- CREDIT (AUTHORIZED SUM) --------------------
+        if total_received_amount > 0:
+            je_entries.append({
+                "account": receivable_account,
+                "party_type": "Customer",
+                "party": customer,
+                "credit_in_account_currency": total_received_amount,
+                "project": "AR BILL SETTLEMENT",
+                "bank_account": "0429028333140012 - BANK MUSCAT"
+            })
+
+        # -------------------- DEBIT (BANK SUM) --------------------
         if total_received_amount > 0:
             je_entries.append({
                 "account": "0429028333140012 - BANK MUSCAT - AN",
                 "debit_in_account_currency": total_received_amount,
                 "project": "AR BILL SETTLEMENT"
             })
-
-        if total_write_off > 0:
-            je_entries.append({
-                "account": write_off_account,
-                "debit_in_account_currency": total_write_off
-            })
-
-        if total_processing_fee > 0:
-            je_entries.append({
-                "account": "Processing Fee - AN",
-                "debit_in_account_currency": total_processing_fee
-            })
-
-        if total_tds > 0:
-            je_entries.append({
-                "account": "TDS - AN",
-                "debit_in_account_currency": total_tds
-            })
-
-        if total_payer_deduct > 0:
-            je_entries.append({
-                "account": "Payer Deduction - AN",
-                "debit_in_account_currency": total_payer_deduct
-            })
-
-        if total_remaining_due > 0:
-            je_entries.append({
-                "account": "Due Ledger - AN",
-                "debit_in_account_currency": total_remaining_due
-            })
-
-         # Remove duplicates + join
-        bill_no_str = ", ".join(set(bill_nos))
-        receipt_no_str = ", ".join(set(receipt_nos))
-
 
         if not je_entries:
             return
@@ -258,11 +186,7 @@ def create_merged_journal_entry(txn_id, transactions):
             "cheque_no": txn_id,
             "cheque_date": posting_date,
             "accounts": je_entries,
-            # "user_remark": f"AR Settlement Consolidated for Transaction: {txn_id}",
-            "user_remark": f"""AR Settlement Consolidated
-                Transaction ID: {txn_id}
-                Bills: {bill_no_str}
-                Receipts: {receipt_no_str}""",
+            "user_remark": f"AR Settlement Consolidated - Transaction ID: {txn_id}",
             "custom_bill_category": "AR BILL SETTLEMENT",
             "custom_transaction_id": txn_id,
         })
