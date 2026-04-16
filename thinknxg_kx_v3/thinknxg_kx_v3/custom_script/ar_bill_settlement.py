@@ -124,7 +124,7 @@ def main():
 @frappe.whitelist()
 def create_merged_journal_entry(txn_id, transactions):
     try:
-        # Avoid duplicate
+        # duplicate
         if frappe.db.exists("Journal Entry", {"cheque_no": txn_id, "docstatus": ["!=", 2]}):
             return
 
@@ -135,50 +135,183 @@ def create_merged_journal_entry(txn_id, transactions):
         company_doc = frappe.get_doc("Company", company)
 
         receivable_account = company_doc.default_receivable_account
+        write_off_account = company_doc.write_off_account
 
         settlement_date = first.get("settlement_date")
         posting_date = datetime.fromtimestamp(settlement_date / 1000).date() if settlement_date else nowdate()
 
+        # ---------------- TOTALS ----------------
         total_received_amount = 0
-        total_authorized_amount = 0
+        total_write_off = 0
+        total_processing_fee = 0
+        total_tds = 0
+        total_payer_deduct = 0
+        total_remaining_due = 0
+        total_discount = 0
 
-        # -------------------- PROCESS --------------------
+        bill_nos = []
+        receipt_nos = []
+        je_entries = []
+
+        # ================= MAIN LOOP =================
         for txn in transactions:
             ar = txn.get("ar_transaction_detail", {})
 
-            # # SUM AUTHORIZATION
-            # for auth in ar.get("payer_authorization", []):
-            #     total_authorized_amount += auth.get("authorization_amount", 0)
+            bill_no = ar.get("bill_no")
+            receipt_no = ar.get("receipt_no")
 
-            # SUM RECEIVED
+            if bill_no:
+                bill_nos.append(bill_no)
+            if receipt_no:
+                receipt_nos.append(receipt_no)
+
+            # ---- FETCH ORIGINAL JE ----
+            journal = frappe.get_all(
+                "Journal Entry",
+                filters={"custom_bill_number": bill_no},
+                fields=["name"],
+                limit=1
+            )
+
+            if not journal:
+                frappe.logger().warning(f"No JE found for bill {bill_no}")
+                continue
+
+            journal_name = journal[0]["name"]
+
+            # ================= Payment Details =================
             for pay in ar.get("payment_detail", []):
-                total_received_amount += pay.get("received_amount", 0)
+                bank_name = pay.get("bank_name")
+                if bank_name == "Bank Muscat":
+                    account = "0429028333140012 - BANK MUSCAT - AN"
+                    bank_account = "0429028333140012 - BANK MUSCAT"
+                elif bank_name == "Ahli Bank":
+                    account = "3931079014001 - AHLI BANK - AN"
+                    bank_account = "3931079014001 - AHLI BANK"
 
-        je_entries = []
-        
-        # -------------------- CREDIT (AUTHORIZED SUM) --------------------
+                received_amount = pay.get("received_amount", 0)
+
+                if received_amount <= 0:
+                    continue
+            # ================= CREDIT (ROW-WISE RECEIVED) =================
+                # CREDIT → Debtors (row-wise knock)
+                je_entries.append({
+                    "account": receivable_account,
+                    "party_type": "Customer",
+                    "party": customer,
+                    "credit_in_account_currency": received_amount,
+                    "reference_type": "Journal Entry",
+                    "reference_name": journal_name,
+                    "project": "AR BILL SETTLEMENT",
+                    "user_remark": f"Bill: {bill_no} ; Receipt: {receipt_no}"
+                })
+
+                total_received_amount += received_amount
+
+            # ================= ACCUMULATE OTHER VALUES =================
+            total_write_off += ar.get("write_off") or 0
+            total_processing_fee += ar.get("processing_fee") or 0
+            total_tds += ar.get("tds") or 0
+            total_payer_deduct += ar.get("payer_deduct_amount") or 0
+            total_remaining_due += ar.get("remaining_due_amount") or 0
+            total_discount += ar.get("discount") or 0
+
+        # ================= DEBIT SIDE =================
+
+        # ---- BANK ----
         if total_received_amount > 0:
             je_entries.append({
-                "account": receivable_account,
-                "party_type": "Customer",
-                "party": customer,
-                "credit_in_account_currency": total_received_amount,
-                "project": "AR BILL SETTLEMENT",
-                "bank_account": "0429028333140012 - BANK MUSCAT"
-            })
-
-        # -------------------- DEBIT (BANK SUM) --------------------
-        if total_received_amount > 0:
-            je_entries.append({
-                "account": "0429028333140012 - BANK MUSCAT - AN",
+                "account": account,
+                "bank_account": bank_account,
                 "debit_in_account_currency": total_received_amount,
                 "project": "AR BILL SETTLEMENT"
             })
 
+        # ---- WRITE OFF ----
+        if total_write_off > 0:
+            je_entries.append({
+                "account": write_off_account,
+                "debit_in_account_currency": total_write_off,
+            })
+            je_entries.append({
+                "account": receivable_account,
+                "credit_in_account_currency": total_write_off,
+                "party_type": "Customer",
+                "party": customer
+            })
+
+        # ---- PROCESSING FEE ----
+        if total_processing_fee > 0:
+            je_entries.append({
+                "account": "FSA Fees - AN",
+                "debit_in_account_currency": total_processing_fee
+            })
+            je_entries.append({
+                "account": receivable_account,
+                "credit_in_account_currency": total_processing_fee,
+                "party_type": "Customer",
+                "party": customer
+            })
+
+        # ---- TDS ----
+        # if total_tds > 0:
+        #     je_entries.append({
+        #         "account": "TDS - AN",
+        #         "debit_in_account_currency": total_tds
+        #     })
+        #     je_entries.append({
+        #         "account": receivable_account,
+        #         "credit_in_account_currency": total_tds,
+        #         "party_type": "Customer",
+        #         "party": customer
+        #     })
+
+        # ---- PAYER DEDUCTION ----
+        if total_payer_deduct > 0:
+            je_entries.append({
+                "account": "Insurance Rejection Loss - AN",
+                "debit_in_account_currency": total_payer_deduct
+            })
+            je_entries.append({
+                "account": receivable_account,
+                "credit_in_account_currency": total_payer_deduct,
+                "party_type": "Customer",
+                "party": customer
+            })
+
+        # ---- REMAINING DUE ----
+        # if total_remaining_due > 0:
+        #     je_entries.append({
+        #         "account": "Due Ledger - AN",
+        #         "debit_in_account_currency": total_remaining_due
+        #     })
+        #     je_entries.append({
+        #         "account": receivable_account,
+        #         "credit_in_account_currency": total_remaining_due,
+        #         "party_type": "Customer",
+        #         "party": customer
+        #     })
+
+        # ---- DISCOUNT ----
+        if total_discount > 0:
+            je_entries.append({
+                "account": write_off_account,
+                "debit_in_account_currency": total_discount
+            })
+            je_entries.append({
+                "account": receivable_account,
+                "credit_in_account_currency": total_discount,
+                "party_type": "Customer",
+                "party": customer
+            })
+
+        # ================= FINAL =================
         if not je_entries:
             return
 
-        # -------------------- CREATE JE --------------------
+        bill_no_str = ", ".join(set(bill_nos))
+        receipt_no_str = ", ".join(set(receipt_nos))
+
         je = frappe.get_doc({
             "doctype": "Journal Entry",
             "naming_series": "KX-JV-.YYYY.-",
@@ -186,7 +319,10 @@ def create_merged_journal_entry(txn_id, transactions):
             "cheque_no": txn_id,
             "cheque_date": posting_date,
             "accounts": je_entries,
-            "user_remark": f"AR Settlement Consolidated - Transaction ID: {txn_id}",
+            "user_remark": f"""AR Settlement Consolidated
+                    Transaction ID: {txn_id}
+                    Bills: {bill_no_str}
+                    Receipts: {receipt_no_str}""",
             "custom_bill_category": "AR BILL SETTLEMENT",
             "custom_transaction_id": txn_id,
         })
