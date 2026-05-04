@@ -140,8 +140,7 @@ def get_columns():
             "fieldname": "employee_name",
             "fieldtype": "Data",
             "label": _("Employee Name"),
-            "width": 0,
-            "hidden": 1,
+            "width": 150,
         },
         {
             "label": _("Shift"),
