@@ -796,7 +796,8 @@ def create_journal_entry_from_billing(billing_data):
             "party": customer,
             "debit_in_account_currency": authorized_amount,
             "credit_in_account_currency": 0,
-            "project": "IP Billing"
+            "project": "IP Billing",
+            "cost_center": cost_center
         })
         
 
@@ -810,7 +811,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": cash_account,  # Replace with actual cash account
                 "debit_in_account_currency": payment["amount"],
                 "credit_in_account_currency": 0,
-                "project": "IP Billing"
+                "project": "IP Billing",
+                "cost_center": cost_center
             })
 
     # Handling Advance Payment Mode
@@ -822,7 +824,8 @@ def create_journal_entry_from_billing(billing_data):
                 "credit_in_account_currency": 0,
                 "party_type": "Customer" if payer_type.lower()!="cash" else None,
                 "party": customer if payer_type.lower()!="cash" else None,
-                "project": "IP Billing"
+                "project": "IP Billing",
+                "cost_center": cost_center
             })
 
     # # Handling Other Payment Modes (UPI, Card, etc.)
@@ -860,7 +863,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": bank_transfer_account,
             "debit_in_account_currency": bank_transfer_total,
             "credit_in_account_currency": 0,
-            "project": "IP Billing"
+            "project": "IP Billing",
+            "cost_center": cost_center
         })
 
     if other_bank_total > 0:
@@ -868,7 +872,8 @@ def create_journal_entry_from_billing(billing_data):
             "account": bank_account,
             "debit_in_account_currency": other_bank_total,
             "credit_in_account_currency": 0,
-            "project": "IP Billing"
+            "project": "IP Billing",
+            "cost_center": cost_center
         })
 
 
@@ -881,7 +886,8 @@ def create_journal_entry_from_billing(billing_data):
             "credit_in_account_currency": 0,
             # "reference_type": "Sales Invoice",
             # "reference_name":sales_invoice_name,
-            "project": "IP Billing"
+            "project": "IP Billing",
+            "cost_center": cost_center
         })
 
     # Tax line

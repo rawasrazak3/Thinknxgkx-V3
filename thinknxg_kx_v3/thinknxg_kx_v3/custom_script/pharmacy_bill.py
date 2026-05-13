@@ -328,7 +328,8 @@ def create_journal_entry_from_billing(billing_data):
             "party": customer,
             "debit_in_account_currency": authorized_amount,
             "credit_in_account_currency": 0,
-            "project": "PHARMACY"
+            "project": "PHARMACY",
+            "cost_center": cost_center
         })
         
 
@@ -339,7 +340,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": cash_account,  # Replace with actual cash account
                 "debit_in_account_currency": payment["amount"],
                 "credit_in_account_currency": 0,
-                "project": "PHARMACY"
+                "project": "PHARMACY",
+                "cost_center": cost_center
             })
 
     # Handling Advance Payment Mode
@@ -349,7 +351,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": customer_advance_account,  # Replace with actual advance account
                 "debit_in_account_currency": payment["amount"],
                 "credit_in_account_currency": 0,
-                "project": "PHARMACY"
+                "project": "PHARMACY",
+                "cost_center": cost_center
             })
 
     #handing bank transfer payment mode
@@ -359,7 +362,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": "0429028333140012 - BANK MUSCAT - AN",
                 "debit_in_account_currency": payment["amount"],
                 "credit_in_account_currency": 0,
-                "project": "PHARMACY"
+                "project": "PHARMACY",
+                "cost_center": cost_center
             })
 
     # Handling Other Payment Modes (UPI, Card, etc.)
@@ -373,7 +377,8 @@ def create_journal_entry_from_billing(billing_data):
             "credit_in_account_currency": 0,
             # "reference_type": "Sales Invoice",
             # "reference_name":sales_invoice_name,
-            "project": "PHARMACY"
+            "project": "PHARMACY",
+            "cost_center": cost_center
         })
     # Handling due amount
     if is_due == "true" and due_amount > 0:
@@ -383,7 +388,8 @@ def create_journal_entry_from_billing(billing_data):
             "credit_in_account_currency": 0,
             # "reference_type": "Sales Invoice",
             # "reference_name":sales_invoice_name,
-            "project": "PHARMACY"
+            "project": "PHARMACY",
+            "cost_center": cost_center
         })
 
     # Tax line
