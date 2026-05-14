@@ -343,7 +343,8 @@ def create_journal_entry_from_billing(billing_data):
             "party": customer,
             "debit_in_account_currency": authorized_amount,
             "credit_in_account_currency": 0,
-            "project": "OP Billing"
+            "project": "OP Billing",
+            "cost_center": cost_center
         })
         
 
@@ -385,7 +386,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": cash_account,
                 "debit_in_account_currency": amount,
                 "credit_in_account_currency": 0,
-                "project": "OP Billing"
+                "project": "OP Billing",
+                "cost_center": cost_center
             })
 
         # UHID / IP ADVANCE
@@ -396,7 +398,8 @@ def create_journal_entry_from_billing(billing_data):
                 "credit_in_account_currency": 0,
                 # "party_type": "Customer",
                 # "party": customer,
-                "project": "OP Billing"
+                "project": "OP Billing",
+                "cost_center": cost_center
             })
 
         # BANK
@@ -405,7 +408,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": "0429028333140012 - BANK MUSCAT - AN",
                 "debit_in_account_currency": amount,
                 "credit_in_account_currency": 0,
-                "project": "OP Billing"
+                "project": "OP Billing",
+                "cost_center": cost_center
             })
 
         elif mode == "prepaid card":
@@ -413,7 +417,8 @@ def create_journal_entry_from_billing(billing_data):
                 "account": bank_account,
                 "debit_in_account_currency": amount,
                 "credit_in_account_currency": 0,
-                "project": "OP Billing"
+                "project": "OP Billing",
+                "cost_center": cost_center
             })
 
 
